@@ -1,0 +1,5 @@
+(library
+ (name frontend))
+
+(ocamllex (modules lexer))
+(menhir (modules parser))
