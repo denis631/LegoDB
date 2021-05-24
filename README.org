@@ -1,0 +1,29 @@
+#+TITLE: README
+
+* Tasks
+** DONE data loader (bootstraper)
+** PROJ SQL query parser
+** PROJ SQL operators [0/6]
+physical and logical at once, but later will refactor into two
+
+*** TODO tablescan
+*** TODO selection
+*** TODO join
+*** TODO projection
+*** TODO group-by (including external)
+*** TODO sort (including external)
+** PROJ repl
+** PROJ push/pull operators
+** PROJ vectorized engine
+** PROJ SIMD
+** PROJ bytecode engine
+- generating bytecode for queries
+- executing the bytecode
+- should be faster than running Volcano for medium sized queries
+** PROJ llvm compilation?
+** PROJ parallel execution
+*** PROJ intra parallel
+*** PROJ inter parallel
+** PROJ storage? persisting? multiple storages support? adapters?
+** PROJ txns and MVCC?
+** PROJ query optimization?

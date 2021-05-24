@@ -1,0 +1,3 @@
+(executable
+  (name main)
+  (libraries lego_db))
