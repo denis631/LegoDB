@@ -21,10 +21,11 @@ open Ast
 %%
 
 query:
-    | e = expr; { e }
+    | e = select; { e }
     ;
 
-expr:
+/* TODO: extend the supported select grammar https://github.com/mysql/mysql-workbench/blob/8.0/library/parsers/grammars/MySQLParser.g4#L1063 */
+select:
     | SELECT; attr_lst = attribute_list; FROM; tbl_lst = table_list; SEMICOLON;
       { Select ({ attr_lst; tbl_lst; pred_lst=[]; }) }
     | SELECT; attr_lst = attribute_list; FROM; tbl_lst = table_list; WHERE; pred_lst = predicate_list; SEMICOLON;
