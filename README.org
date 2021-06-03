@@ -2,7 +2,7 @@
 
 * Tasks
 ** DONE data loader (bootstraper)
-** PROJ SQL query parser
+** IN PROGRESS SQL query parser
 ** PROJ SQL operators [0/6]
 physical and logical at once, but later will refactor into two
 
@@ -12,7 +12,7 @@ physical and logical at once, but later will refactor into two
 *** TODO projection
 *** TODO group-by (including external)
 *** TODO sort (including external)
-** PROJ repl
+** DONE repl
 ** PROJ push/pull operators
 ** PROJ vectorized engine
 ** PROJ SIMD

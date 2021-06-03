@@ -28,6 +28,7 @@ rule next_token = parse
   | ';'      { SEMICOLON }
   | ','      { COMMA }
   | '='      { EQ }
+  | '*'      { STAR } 
   | "select" { SELECT }
   | "where"  { WHERE }
   | "and"    { AND }

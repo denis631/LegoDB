@@ -1,5 +1,5 @@
 open Lego_db
 
 let _ =
-  (* Bootstrapper.bootstrap () in *)
+  Bootstrapper.bootstrap () ;
   Repl.run ()

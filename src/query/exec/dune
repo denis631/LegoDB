@@ -1,6 +1,5 @@
 (library
- (name lego_db)
+ (name exec)
  (libraries
    frontend
-   exec
    storage))

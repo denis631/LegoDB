@@ -1,26 +1,24 @@
-(* TODO: support aliasing *)
-type attr = AttrName of String.t
+(* TODO: support aliasing and dot notation *)
+type attr =
+  | AttrName of string
+  | Star
 
-(* TODO: support aliasing *)
-type tbl = TblName of String.t
+(* TODO: support aliasing and dot notation *)
+type tbl = TblName of string
+
+(* let show_tbl = function TblName s -> s *)
 
 type const =
   | Int of int
-  | Str of String.t
+  | Str of string
 
-type predicate =
+type pred =
   | EqConst of attr * const
   | EqAttr of attr * attr
 
-type select_expr =
-  { attr_lst : attr list
-  ; tbl_lst : tbl list
-  ; pred_lst : predicate list
-  }
+type sql_expr = Select of attr list * tbl list * pred list option
 
-type sql_expr = Select of select_expr
-
-let show_attr = function AttrName x -> x
+let show_attr = function AttrName x -> x | Star -> "*"
 
 let show_tbl = function TblName x -> x
 
@@ -34,8 +32,9 @@ let show_pred = function
 
 
 let show = function
-  | Select stmt ->
-      let attrs = String.concat ", " @@ List.map show_attr stmt.attr_lst in
-      let tbls = String.concat ", " @@ List.map show_tbl stmt.tbl_lst in
-      let preds = String.concat ", " @@ List.map show_pred stmt.pred_lst in
+  | Select (attr_lst, tbl_lst, pred_lst) ->
+      let attrs = String.concat ", " @@ List.map show_attr attr_lst in
+      let tbls = String.concat ", " @@ List.map show_tbl tbl_lst in
+      let preds = if Option.is_some pred_lst then Option.get pred_lst else [] in
+      let preds = String.concat ", " @@ List.map show_pred preds in
       "attrs: " ^ attrs ^ "\n" ^ "tbls: " ^ tbls ^ "\n" ^ "preds: " ^ preds

@@ -21,7 +21,7 @@ let load_tpcc () =
   in
 
   let table_infos =
-    let warehouse : String.t * Schema.t =
+    let warehouse : string * Schema.t =
       ( "warehouse"
       , [ (Integer, "w_id")
         ; (VarChar 10, "w_name")
@@ -34,7 +34,7 @@ let load_tpcc () =
         ; (Numeric (12, 2), "w_ytd")
         ] )
     in
-    let district : String.t * Schema.t =
+    let district : string * Schema.t =
       ( "district"
       , [ (Integer, "d_id")
         ; (Integer, "d_w_id")
@@ -49,7 +49,7 @@ let load_tpcc () =
         ; (Integer, "d_next_o_id")
         ] )
     in
-    let customer : String.t * Schema.t =
+    let customer : string * Schema.t =
       ( "customer"
       , [ (Integer, "c_id")
         ; (Integer, "c_d_id")
@@ -74,7 +74,7 @@ let load_tpcc () =
         ; (VarChar 500, "c_data")
         ] )
     in
-    let history : String.t * Schema.t =
+    let history : string * Schema.t =
       ( "history"
       , [ (Integer, "h_c_id")
         ; (Integer, "h_c_d_id")
@@ -86,11 +86,11 @@ let load_tpcc () =
         ; (VarChar 24, "h_data")
         ] )
     in
-    let neworder : String.t * Schema.t =
+    let neworder : string * Schema.t =
       ( "neworder"
       , [ (Integer, "no_o_id"); (Integer, "no_d_id"); (Integer, "no_w_id") ] )
     in
-    let order : String.t * Schema.t =
+    let order : string * Schema.t =
       ( "order"
       , [ (Integer, "o_id")
         ; (Integer, "o_d_id")
@@ -102,7 +102,7 @@ let load_tpcc () =
         ; (Numeric (1, 0), "o_all_local")
         ] )
     in
-    let orderline : String.t * Schema.t =
+    let orderline : string * Schema.t =
       ( "orderline"
       , [ (Integer, "ol_o_id")
         ; (Integer, "ol_d_id")
@@ -116,7 +116,7 @@ let load_tpcc () =
         ; (Char 24, "ol_dist_info")
         ] )
     in
-    let item : String.t * Schema.t =
+    let item : string * Schema.t =
       ( "item"
       , [ (Integer, "i_id")
         ; (Integer, "i_im_id")
@@ -125,7 +125,7 @@ let load_tpcc () =
         ; (VarChar 50, "i_data")
         ] )
     in
-    let stock : String.t * Schema.t =
+    let stock : string * Schema.t =
       ( "stock"
       , [ (Integer, "s_i_id")
         ; (Integer, "s_w_id")
