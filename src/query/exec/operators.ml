@@ -39,20 +39,50 @@ let rec eval_match = function
 
 
 (* TODO: provide an abstraction (data cursor) that delivers data to the operators *)
-type tbl_scan_ctx = { mutable tuples : Tuple.t list }
+type tbl_scan_ctx =
+  { tbl : Table.t
+  ; mutable tuples : Tuple.t list
+  ; attr_idxs : int list
+  }
+
+type iu = Table.name * Schema.column_name * Value_type.t
+
+type proj_attrs = iu list
 
 type operator =
   | TableScan of tbl_scan_ctx (* TODO: this is too low level. *)
   | Selection of match_expr_annot * operator
+  (* | InnerJoin of match_expr_annot * operator * operator *)
   (* TODO: support * projection *)
-  | Projection of Schema.column_name list * operator
+  | Projection of proj_attrs * operator
+
+(* TODO: for pushing the attributes to read *)
+let rec prepare ius = function
+  | TableScan tbl_scan_ctx ->
+      let get_idx idx (c1, ty1) =
+        if List.exists (fun (_, c2, ty2) -> c1 = c2 && ty1 = ty2) ius
+        then Some idx
+        else None
+      in
+      let attr_idxs =
+        Table.(tbl_scan_ctx.tbl.schema)
+        |> List.mapi get_idx
+        |> List.filter_map (fun x -> x)
+      in
+      TableScan
+        { tbl = tbl_scan_ctx.tbl; tuples = tbl_scan_ctx.tuples; attr_idxs }
+  | Selection (expr, op) ->
+      Selection (expr, prepare ius op)
+  | Projection (ius, op) ->
+      Projection (ius, prepare ius op)
+
 
 let rec next ctx = function
   | TableScan tbl_scan_ctx ->
     ( match tbl_scan_ctx.tuples with
     | x :: xs ->
         tbl_scan_ctx.tuples <- xs ;
-        Some x
+        Some (Tuple.extract_values tbl_scan_ctx.attr_idxs x)
     | [] ->
         None )
   | Selection (_, child) ->

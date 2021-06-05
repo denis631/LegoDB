@@ -1,3 +1,3 @@
 type column_name = string
 
-type t = (Value_type.t * column_name) list
+type t = (column_name * Value_type.t) list
