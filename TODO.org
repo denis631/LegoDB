@@ -1,29 +1,37 @@
 #+TITLE: TODOs
 
 * Tasks
-** DONE data loader (bootstraper)
-** IN PROGRESS SQL query parser
-** PROJ SQL operators [0/6]
+** [X] data loader (bootstraper)
+** [X] SQL query parser
+** [X] repl
+** [ ] SQL operators [1/6]
 physical and logical at once, but later will refactor into two
 
-*** TODO tablescan
-*** TODO selection
-*** TODO join
-*** TODO projection
-*** TODO group-by (including external)
-*** TODO sort (including external)
-** DONE repl
-** PROJ push/pull operators
-** PROJ vectorized engine
-** PROJ SIMD
-** PROJ bytecode engine
+*** [ ] tablescan
+*** [ ] selection
+*** [ ] join
+*** [X] projection
+*** [ ] group-by (including external)
+*** [ ] sort (including external)
+** [ ] push/pull operators?
+** [ ] vectorized engine
+** [ ] late materialization
+** [ ] SIMD
+** [ ] bytecode engine
 - generating bytecode for queries
 - executing the bytecode
 - should be faster than running Volcano for medium sized queries
-** PROJ llvm compilation?
-** PROJ parallel execution
+** [ ] llvm compilation?
+** [ ] parallel execution
 *** PROJ intra parallel
 *** PROJ inter parallel
-** PROJ storage? persisting? multiple storages support? adapters?
-** PROJ txns and MVCC?
-** PROJ query optimization?
+** [ ] storage? persisting? multiple storages support? adapters?
+*** [ ] access data via:
+**** [ ] Sequential Scan
+**** [ ] Index Scan
+**** [ ] Multi-Index / "Bitmap" Scan
+** [ ] txns and MVCC?
+** [ ] query optimization?
+** [ ] efficient data structures?
+*** [ ] efficient hash tables
+*** [ ] efficient B+-tree

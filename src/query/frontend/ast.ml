@@ -6,8 +6,6 @@ type attr =
 (* TODO: support aliasing and dot notation *)
 type tbl = TblName of string
 
-(* let show_tbl = function TblName s -> s *)
-
 type const =
   | Int of int
   | Str of string

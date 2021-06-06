@@ -14,7 +14,9 @@ type t =
   (* TODO: support Char<2>("ab") and Varchar<20>("aoeaoe") *)
   | Char of string
   | VarChar of string
+  | StringLiteral of string
   | Timestamp of int
+  | Bool of bool
 
 let eq a b =
   match (a, b) with
@@ -26,8 +28,14 @@ let eq a b =
       String.equal c1 c2
   | VarChar c1, VarChar c2 ->
       String.equal c1 c2
+  | Char c, StringLiteral x ->
+      String.equal x c
+  | VarChar c, StringLiteral x ->
+      String.equal x c
   | Timestamp x, Timestamp y ->
       x = y
+  | Bool a, Bool b ->
+      a = b
   | _ ->
       false
 
@@ -99,5 +107,9 @@ let show = function
       x
   | VarChar x ->
       x
+  | StringLiteral x ->
+      x
   | Timestamp x ->
       string_of_int x
+  | Bool x ->
+      string_of_bool x
