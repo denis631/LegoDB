@@ -3,18 +3,17 @@ open BatteriesExceptionless
 
 type exec_ctx = unit
 
-(* TODO: provide an abstraction (data cursor) that delivers data to the operators *)
 type tbl_scan_ctx =
   { tbl : Table.t
   ; mutable tuples : Storage.Tuple.t list
   ; attr_idxs : int list
   }
 
-type proj_attrs = Table.iu list
+type proj_attrs = Table.Iu.t list
 
 type operator =
   | TableScan of tbl_scan_ctx (* TODO: this is too low level. *)
-  | Selection of Match.bool_expr * operator
+  | Selection of Match.Expr.bool * operator
   | Projection of proj_attrs * operator
 
 (* | CrossProduct of operator * operator *)
@@ -24,24 +23,17 @@ type operator =
 (* TODO: for pushing the attributes to read *)
 let rec prepare ius = function
   | TableScan tbl_scan_ctx ->
-      let get_idx idx (c1, ty1) =
-        if List.exists
-             (fun (tbl_name, c2, ty2) ->
-               tbl_scan_ctx.tbl.name = tbl_name && c1 = c2 && ty1 = ty2 )
-             ius
-        then Some idx
-        else None
+      let get_idx idx iu =
+        if List.exists (Table.Iu.eq iu) ius then Some idx else None
       in
-      let attr_idxs =
-        List.filteri_map get_idx Table.(tbl_scan_ctx.tbl.schema)
-      in
+      let attr_idxs = List.filteri_map get_idx @@ Table.ius tbl_scan_ctx.tbl in
       TableScan
         { tbl = tbl_scan_ctx.tbl; tuples = tbl_scan_ctx.tuples; attr_idxs }
   | Selection (expr, op) ->
-      let pred_ius = Match.ius_of_bool_expr expr in
+      let pred_ius = Match.Expr.ius (Match.Expr.BoolExpr expr) in
       let ius = List.unique @@ ius @ pred_ius in
       let iu_idx_map =
-        let tbl : (Table.iu, int) Hashtbl.t =
+        let tbl : (Table.Iu.t, int) Hashtbl.t =
           Hashtbl.create @@ List.length pred_ius
         in
         let find_idx iu =
@@ -54,7 +46,11 @@ let rec prepare ius = function
         List.iter find_idx pred_ius ;
         tbl
       in
-      Selection (Match.prepare_bool_expr iu_idx_map expr, prepare ius op)
+      ( match Match.Expr.prepare iu_idx_map (Match.Expr.BoolExpr expr) with
+      | BoolExpr matchExpr ->
+          Selection (matchExpr, prepare ius op)
+      | _ ->
+          failwith "wrong implementation" )
   | Projection (ius, op) ->
       Projection (ius, prepare ius op)
 
@@ -71,7 +67,10 @@ let rec next ctx = function
       let rec probe () =
         match next ctx child with
         | Some tuple ->
-            if Match.eval_bool_expr tuple expr then Some tuple else probe ()
+            let is_true = Value.eq @@ Value.Bool true in
+            if is_true @@ Match.Expr.eval tuple @@ Match.Expr.BoolExpr expr
+            then Some tuple
+            else probe ()
         | None ->
             None
       in

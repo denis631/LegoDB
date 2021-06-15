@@ -1,10 +1,8 @@
-open Ast
-
 type parse_error = string
 
-type parse_result = (sql_expr, parse_error) result
+type parse_result = (Ast.sql_expr, parse_error) result
 
-let parse (s : string) : parse_result =
+let parse s =
   let lexbuf = Lexing.from_string s in
   try Ok (Parser.query Lexer.next_token lexbuf) with
   | Lexer.SyntaxError s ->

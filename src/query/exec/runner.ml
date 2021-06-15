@@ -12,21 +12,21 @@ let make_match_tree db pred_lst =
     in
     let make_const = function
       | Int i ->
-          Match.Leaf (Match.Const (Value.Integer i))
+          Match.Expr.Leaf (Match.Expr.Const (Value.Integer i))
       | Str s ->
-          Match.Leaf (Match.Const (Value.StringLiteral s))
+          Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s))
     in
     match pred with
     | EqConst (attr, const) ->
-        let lhs = Match.Leaf (Match.TableAttr (make_attr_iu attr)) in
+        let lhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr)) in
         let rhs = make_const const in
-        Match.Eq (lhs, rhs)
+        Match.Expr.Eq (lhs, rhs)
     | EqAttr (attr1, attr2) ->
-        let lhs = Match.Leaf (Match.TableAttr (make_attr_iu attr1)) in
-        let rhs = Match.Leaf (Match.TableAttr (make_attr_iu attr2)) in
-        Match.Eq (lhs, rhs)
+        let lhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr1)) in
+        let rhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr2)) in
+        Match.Expr.Eq (lhs, rhs)
   in
-  Match.And (List.map make_expr pred_lst)
+  Match.Expr.And (List.map make_expr pred_lst)
 
 
 let make_operator_tree db = function
@@ -34,7 +34,7 @@ let make_operator_tree db = function
       let tbls = List.map (Binder.find_table db) tbl_lst in
       let tbl_scan =
         let tbl = List.hd tbls in
-        TableScan { tbl; attr_idxs = []; tuples = tbl.tuples }
+        TableScan { tbl; attr_idxs = []; tuples = Table.tuples tbl }
       in
       let attrs =
         if List.exists (( = ) Star) attr_lst

@@ -1,22 +1,14 @@
-let rec pow a = function
-  | 0 ->
-      1
-  | 1 ->
-      a
-  | n ->
-      let b = pow a (n / 2) in
-      b * b * if n mod 2 = 0 then 1 else a
-
+open BatteriesExceptionless
 
 type t =
   | Integer of int
   | Numeric of (int * int) * int
-  (* TODO: support Char<2>("ab") and Varchar<20>("aoeaoe") *)
   | Char of string
   | VarChar of string
   | StringLiteral of string
   | Timestamp of int
   | Bool of bool
+
 
 let eq a b =
   match (a, b) with
@@ -48,10 +40,10 @@ let parse (t : Value_type.t) x =
       let trimmed_x = String.trim x in
       let is_neg = trimmed_x.[0] = '-' in
       let chars =
-        let char_list = List.of_seq (fun () -> String.to_seq trimmed_x ()) in
-        match List.hd char_list with
+        let char_list = String.to_list trimmed_x in
+        match List.first char_list with
         | '+' | '-' ->
-            List.tl char_list
+            Option.get @@ List.tl char_list
         | _ ->
             char_list
       in
@@ -101,7 +93,7 @@ let show = function
   | Integer x ->
       string_of_int x
   | Numeric ((_, precision), x) ->
-      let tmp = pow 10 precision in
+      let tmp = Int.pow  10 precision in
       string_of_int (x / tmp) ^ "." ^ string_of_int (x mod tmp)
   | Char x ->
       x

@@ -1,9 +1,7 @@
-(* TODO: support aliasing and dot notation *)
 type attr =
   | AttrName of string
   | Star
 
-(* TODO: support aliasing and dot notation *)
 type tbl = TblName of string
 
 type const =

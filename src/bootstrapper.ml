@@ -178,4 +178,4 @@ let load_tpcc () =
     table_infos
 
 
-let bootstrap () = load_tpcc ()
+let bootstrap = load_tpcc

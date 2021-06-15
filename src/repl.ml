@@ -18,6 +18,3 @@ let rec loop () =
   | Error e ->
       print_endline e ;
       loop ()
-
-
-let run = loop
