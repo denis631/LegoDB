@@ -14,7 +14,7 @@ val name : t -> name
 
 val schema : t -> Schema.t
 
-val tuples : t -> Tuple.t list
+val tuple_at_idx : t -> int -> Tuple.t option
 
 val create : name -> Schema.t -> t
 

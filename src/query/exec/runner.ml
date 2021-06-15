@@ -34,7 +34,7 @@ let make_operator_tree db = function
       let tbls = List.map (Binder.find_table db) tbl_lst in
       let tbl_scan =
         let tbl = List.hd tbls in
-        TableScan { tbl; attr_idxs = []; tuples = Table.tuples tbl }
+        TableScan { tbl; tuple_idx = 0; attr_idxs = [] }
       in
       let attrs =
         if List.exists (( = ) Star) attr_lst

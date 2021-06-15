@@ -5,7 +5,7 @@ type exec_ctx = unit
 
 type tbl_scan_ctx =
   { tbl : Table.t
-  ; mutable tuples : Storage.Tuple.t list
+  ; mutable tuple_idx : int
   ; attr_idxs : int list
   }
 
@@ -27,8 +27,7 @@ let rec prepare ius = function
         if List.exists (Table.Iu.eq iu) ius then Some idx else None
       in
       let attr_idxs = List.filteri_map get_idx @@ Table.ius tbl_scan_ctx.tbl in
-      TableScan
-        { tbl = tbl_scan_ctx.tbl; tuples = tbl_scan_ctx.tuples; attr_idxs }
+      TableScan { tbl = tbl_scan_ctx.tbl; tuple_idx = 0; attr_idxs }
   | Selection (expr, op) ->
       let pred_ius = Match.Expr.ius (Match.Expr.BoolExpr expr) in
       let ius = List.unique @@ ius @ pred_ius in
@@ -57,12 +56,9 @@ let rec prepare ius = function
 
 let rec next ctx = function
   | TableScan tbl_scan_ctx ->
-    ( match tbl_scan_ctx.tuples with
-    | x :: xs ->
-        tbl_scan_ctx.tuples <- xs ;
-        Some (Storage.Tuple.extract_values tbl_scan_ctx.attr_idxs x)
-    | [] ->
-        None )
+      let tuple = Table.tuple_at_idx tbl_scan_ctx.tbl tbl_scan_ctx.tuple_idx in
+      tbl_scan_ctx.tuple_idx <- tbl_scan_ctx.tuple_idx + 1 ;
+      Option.map (Storage.Tuple.extract_values tbl_scan_ctx.attr_idxs) tuple
   | Selection (expr, child) ->
       let rec probe () =
         match next ctx child with
@@ -76,4 +72,5 @@ let rec next ctx = function
       in
       probe ()
   | Projection (_, child) ->
+      (* remove redundant attributes *)
       next ctx child

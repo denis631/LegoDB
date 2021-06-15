@@ -5,7 +5,7 @@ type exec_ctx = unit
 (* TODO: provide an abstraction (data cursor) that delivers data to the operators *)
 type tbl_scan_ctx =
   { tbl : Table.t
-  ; mutable tuples : Storage.Tuple.t list
+  ; mutable tuple_idx : int
   ; attr_idxs : int list
   }
 
