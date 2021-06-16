@@ -34,7 +34,8 @@ let make_operator_tree db = function
       let tbls = List.map (Binder.find_table db) tbl_lst in
       let tbl_scan =
         let tbl = List.hd tbls in
-        TableScan { iter = Table.Iter.make tbl; ius = Table.ius tbl ; attr_idxs = [] }
+        TableScan
+          { iter = Table.Iter.make tbl; ius = Table.ius tbl; attr_idxs = [] }
       in
       let attrs =
         if List.exists (( = ) Star) attr_lst
@@ -62,3 +63,10 @@ let run db ast =
     match next ctx tree with Some t -> exec (t :: acc) | None -> acc
   in
   exec []
+
+
+let benchmark f =
+  let t = Sys.time () in
+  let result = f () in
+  Printf.printf "Execution time: %fs\n" (Sys.time () -. t) ;
+  result
