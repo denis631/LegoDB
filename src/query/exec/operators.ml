@@ -4,8 +4,8 @@ open BatteriesExceptionless
 type exec_ctx = unit
 
 type tbl_scan_ctx =
-  { tbl : Table.t
-  ; mutable tuple_idx : int
+  { iter : Table.Iter.t
+  ; ius : Table.Iu.t list
   ; attr_idxs : int list
   }
 
@@ -26,14 +26,14 @@ let rec prepare ius = function
       let get_idx idx iu =
         if List.exists (Table.Iu.eq iu) ius then Some idx else None
       in
-      let attr_idxs = List.filteri_map get_idx @@ Table.ius tbl_scan_ctx.tbl in
-      TableScan { tbl = tbl_scan_ctx.tbl; tuple_idx = 0; attr_idxs }
+      let attr_idxs = List.filteri_map get_idx tbl_scan_ctx.ius in
+      TableScan { iter = tbl_scan_ctx.iter; ius = tbl_scan_ctx.ius; attr_idxs }
   | Selection (expr, op) ->
       let pred_ius = Match.Expr.ius (Match.Expr.BoolExpr expr) in
-      let ius = List.unique @@ ius @ pred_ius in
+      let ius = List.unique_cmp @@ ius @ pred_ius in
       let iu_idx_map =
         let tbl : (Table.Iu.t, int) Hashtbl.t =
-          Hashtbl.create @@ List.length pred_ius
+          Hashtbl.create @@ List.length ius
         in
         let find_idx iu =
           match List.index_of iu ius with
@@ -42,7 +42,7 @@ let rec prepare ius = function
           | None ->
               ()
         in
-        List.iter find_idx pred_ius ;
+        List.iter find_idx ius ;
         tbl
       in
       ( match Match.Expr.prepare iu_idx_map (Match.Expr.BoolExpr expr) with
@@ -56,8 +56,7 @@ let rec prepare ius = function
 
 let rec next ctx = function
   | TableScan tbl_scan_ctx ->
-      let tuple = Table.tuple_at_idx tbl_scan_ctx.tbl tbl_scan_ctx.tuple_idx in
-      tbl_scan_ctx.tuple_idx <- tbl_scan_ctx.tuple_idx + 1 ;
+      let tuple = Table.Iter.next tbl_scan_ctx.iter in
       Option.map (Storage.Tuple.extract_values tbl_scan_ctx.attr_idxs) tuple
   | Selection (expr, child) ->
       let rec probe () =
@@ -71,6 +70,5 @@ let rec next ctx = function
             None
       in
       probe ()
-  | Projection (_, child) ->
-      (* remove redundant attributes *)
-      next ctx child
+  | Projection (ius, child) ->
+      Option.map (Storage.Tuple.take @@ List.length ius) @@ next ctx child

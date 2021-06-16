@@ -1,3 +1,5 @@
+open BatteriesExceptionless
+
 type t = Value.t list
 
 let parse schema data =
@@ -7,6 +9,8 @@ let parse schema data =
 
 
 let get = List.nth
+
+let take = List.take
 
 let extract_values idxs = List.filteri (fun i _ -> List.exists (( = ) i) idxs)
 
