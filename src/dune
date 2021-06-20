@@ -3,4 +3,5 @@
  (libraries
    frontend
    exec
+   query
    storage))

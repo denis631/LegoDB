@@ -1,4 +1,5 @@
 open Storage
+open Expr
 open BatteriesExceptionless
 
 type exec_ctx = unit
@@ -11,10 +12,10 @@ type tbl_scan_ctx =
 
 type proj_attrs = Table.Iu.t list
 
-type operator =
+type t =
   | TableScan of tbl_scan_ctx (* TODO: this is too low level. *)
-  | Selection of Match.Expr.bool * operator
-  | Projection of proj_attrs * operator
+  | Selection of Match.Expr.bool * t
+  | Projection of proj_attrs * t
 
 (* | CrossProduct of operator * operator *)
 (* TODO: should be created by joining predicate and cross product *)

@@ -1,8 +1,6 @@
 (library
- (name exec)
+ (name optimizer)
  (libraries
-   frontend
-   storage
    logical
    physical
    expr

@@ -1,10 +1,8 @@
 (library
- (name exec)
+ (name physical)
  (libraries
    frontend
    storage
-   logical
-   physical
    expr
 
    batteries))

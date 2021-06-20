@@ -1,10 +1,11 @@
 (library
- (name exec)
+ (name query)
  (libraries
    frontend
    storage
    logical
    physical
    expr
+   optimizer
 
    batteries))

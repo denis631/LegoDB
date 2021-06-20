@@ -1,5 +1,5 @@
 open Lego_db
 
 let _ =
-  Exec.Runner.benchmark Bootstrapper.bootstrap;
+  Query.Driver.benchmark Bootstrapper.bootstrap;
   Repl.loop ()

@@ -4,15 +4,16 @@
 ** [X] data loader (bootstraper)
 ** [X] SQL query parser
 ** [X] repl
-** [ ] SQL operators [1/6]
+** [ ] SQL operators [0/6]
 physical and logical at once, but later will refactor into two
 
 *** [ ] tablescan
 *** [ ] selection
 *** [ ] join
-*** [X] projection
+*** [ ] projection
 *** [ ] group-by (including external)
 *** [ ] sort (including external)
+** [X] benchmark
 ** [ ] push/pull operators?
 ** [ ] vectorized engine
 ** [ ] late materialization
@@ -25,6 +26,7 @@ physical and logical at once, but later will refactor into two
 ** [ ] parallel execution
 *** PROJ intra parallel
 *** PROJ inter parallel
+** [ ] cooperative scheduling
 ** [ ] storage? persisting? multiple storages support? adapters?
 *** [ ] access data via:
 **** [ ] Sequential Scan

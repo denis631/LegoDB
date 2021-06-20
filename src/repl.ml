@@ -1,18 +1,19 @@
 open Frontend
+open BatteriesExceptionless
 
 let read () = Sql_parser.parse @@ read_line ()
 
 let eval query =
   Printf.printf "%s\n---\n" @@ Ast.show query ;
-  Exec.Runner.run Bootstrapper.db query
+  Query.Driver.run Bootstrapper.db query
 
 
-let print = List.iter (fun t -> print_endline @@ Storage.Tuple.show t)
+let print = print_endline % Storage.Tuple.show
 
 let rec loop () =
   match read () with
   | Ok query ->
-      Exec.Runner.benchmark (fun () -> print @@ eval query) ;
+      Query.Driver.benchmark (fun () -> eval query print) ;
       loop ()
   | Error e ->
       print_endline e ;
