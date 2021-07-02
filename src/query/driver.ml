@@ -71,7 +71,7 @@ let run db ast f =
   let ctx = () in
   let rec iter () =
     match Physical.Operators.next ctx tree with
-    | Some t ->
+    | Some (t, _) ->
         f t ;
         iter ()
     | None ->

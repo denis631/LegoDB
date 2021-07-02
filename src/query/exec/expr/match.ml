@@ -9,38 +9,11 @@ module Expr = struct
 
   and leaf =
     | Const of Value.t
-    (* NOTE: logical *)
     | TableAttr of Table.Iu.t
-    (* NOTE: physical *)
-    | TableAttrIdx of int
 
   and t =
     | BoolExpr of bool
     | Leaf of leaf
-
-  let rec prepare iu_idx_map expr =
-    let prepare_leaf = function
-      | Const x ->
-          Const x
-      | TableAttr iu ->
-          TableAttrIdx (Option.get @@ Hashtbl.find iu_idx_map iu)
-      | TableAttrIdx _ ->
-          failwith "illegal node in the tree"
-    in
-    let rec prepare_bool = function
-      | And expr_lst ->
-          And (List.map prepare_bool expr_lst)
-      | Or expr_lst ->
-          Or (List.map prepare_bool expr_lst)
-      | Eq (e1, e2) ->
-          Eq (prepare iu_idx_map e1, prepare iu_idx_map e2)
-    in
-    match expr with
-    | Leaf leaf ->
-        Leaf (prepare_leaf leaf)
-    | BoolExpr bool ->
-        BoolExpr (prepare_bool bool)
-
 
   let rec ius expr =
     let rec ius_of_bool = function
@@ -51,14 +24,7 @@ module Expr = struct
       | Eq (e1, e2) ->
           ius e1 @ ius e2
     in
-    let ius_of_leaf = function
-      | Const _ ->
-          []
-      | TableAttr iu ->
-          [ iu ]
-      | TableAttrIdx _ ->
-          failwith "TODO: invalid node"
-    in
+    let ius_of_leaf = function Const _ -> [] | TableAttr iu -> [ iu ] in
     match expr with
     | Leaf leaf ->
         ius_of_leaf leaf
@@ -66,24 +32,25 @@ module Expr = struct
         ius_of_bool bool
 
 
-  let rec eval tuple expr =
+  let rec eval (tuple, schema) expr =
     let rec eval_bool = function
       | And expr_lst ->
           List.fold_left (fun acc expr -> acc && eval_bool expr) true expr_lst
       | Or expr_lst ->
           List.fold_left (fun acc expr -> acc || eval_bool expr) true expr_lst
       | Eq (e1, e2) ->
-          let lhs = eval tuple e1 in
-          let rhs = eval tuple e2 in
+          let lhs = eval (tuple, schema) e1 in
+          let rhs = eval (tuple, schema) e2 in
           Value.eq lhs rhs
     in
     let eval_leaf = function
       | Const x ->
           x
-      | TableAttr _ ->
-          failwith "TODO: implement iu -> idx mapping"
-      | TableAttrIdx idx ->
-          Storage.Tuple.get tuple idx
+      | TableAttr iu ->
+          List.map2 (fun x y -> (x, y)) tuple schema
+          |> List.find (Table.Iu.eq iu % snd)
+          |> Option.get
+          |> fst
     in
     match expr with
     | Leaf leaf ->
