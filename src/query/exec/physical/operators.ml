@@ -12,15 +12,12 @@ type tbl_scan_ctx =
 type proj_attrs = Table.Iu.t list
 
 type t =
-  | TableScan of tbl_scan_ctx (* TODO: this is too low level. *)
+  | TableScan of tbl_scan_ctx
   | Selection of Match.Expr.bool * t
   | Projection of proj_attrs * t
 
-(* | CrossProduct of operator * operator *)
-(* TODO: should be created by joining predicate and cross product *)
 (* | InnerJoin of match_expr_annot * operator * operator *)
 
-(* TODO: for pushing the attributes to read *)
 let rec prepare _ = function
   | TableScan tbl_scan_ctx ->
       TableScan { iter = tbl_scan_ctx.iter; ius = tbl_scan_ctx.ius }
@@ -35,9 +32,6 @@ let rec next ctx = function
       tbl_scan_ctx.iter
       |> Table.Iter.next
       |> Option.map (fun t -> (t, tbl_scan_ctx.ius))
-      (* TODO: uncomment this later as an extra optimization,
-       *       fetching only needed attributes from the start *)
-      (* Option.map (Storage.Tuple.extract_values tbl_scan_ctx.attr_idxs) tuple *)
   | Selection (expr, child) ->
       let rec probe () =
         match next ctx child with
@@ -51,8 +45,6 @@ let rec next ctx = function
       in
       probe ()
   | Projection (ius, child) ->
-    (* TODO: do not take just first k attributes, but rather according to the set of attributes *)
-    (* Option.map (Storage.Tuple.take @@ List.length ius) @@ next ctx child *)
     ( match next ctx child with
     | Some (tuple, schema) ->
         let should_project_iu iu = List.exists (Table.Iu.eq iu) ius in
