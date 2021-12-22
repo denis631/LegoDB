@@ -9,7 +9,7 @@ type tbl_scan =
 
 type op += TableScan of tbl_scan
 
-let make iter ius = TableScan { iter; ius }
+let make ~iter ~ius = TableScan { iter; ius }
 
 let prepare _ tbl_scan = tbl_scan
 
