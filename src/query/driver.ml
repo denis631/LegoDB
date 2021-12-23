@@ -1,6 +1,7 @@
 open Frontend.Ast
 open Storage
 open Expr
+open BatteriesExceptionless
 
 let make_expr db pred =
   let make_attr_iu = function
@@ -52,7 +53,7 @@ let make_operator_tree db = function
       in
       let select_ops =
         pred_lst
-        |> Option.value ~default:[]
+        |> Option.default []
         |> List.map (make_expr db)
         |> List.fold_left
              (fun acc pred -> Logical.Operators.Selection (pred, acc))
@@ -65,6 +66,7 @@ let run db ast f =
   let tree =
     ast
     |> make_operator_tree db
+    |> tap (fun tree -> print_endline (Logical.Operators.show tree))
     |> Optimizer.optimize
     |> Physical.Operators.prepare []
   in

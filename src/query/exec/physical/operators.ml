@@ -2,7 +2,6 @@ open BatteriesExceptionless
 
 type exec_ctx = unit
 
-(* | InnerJoin of match_expr_annot * operator * operator *)
 
 let rec prepare ius = function
   | Table_scan.TableScan tbl_scan ->
@@ -15,6 +14,11 @@ let rec prepare ius = function
       Projection.make
         ~attributes:projection.attributes
         ~childOp:(prepare ius projection.childOp)
+  | Hash_join.HashJoin join ->
+    Hash_join.make
+      ~leftOp:(prepare ius join.leftOp)
+      ~rightOp:(prepare ius join.rightOp)
+      ~hash_key_ius:join.hash_key_ius
   | _ ->
       failwith "unhandled case"
 
@@ -26,5 +30,7 @@ let rec next ctx = function
       Selection.next next ctx selection
   | Projection.Projection projection ->
       Projection.next next ctx projection
+  | Hash_join.HashJoin join ->
+      Hash_join.next next ctx join
   | _ ->
       failwith "unhandled case"

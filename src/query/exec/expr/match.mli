@@ -17,4 +17,6 @@ module Expr : sig
   val ius : t -> Table.Iu.t list
 
   val eval : Tuple.t * Table.Iu.t list -> t -> Value.t
+
+  val show : t -> string
 end

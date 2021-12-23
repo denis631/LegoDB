@@ -57,4 +57,26 @@ module Expr = struct
         eval_leaf leaf
     | BoolExpr bool ->
         Value.Bool (eval_bool bool)
+
+
+  let rec show expr =
+    let rec show_bool = function
+      | And expr_lst ->
+          expr_lst |> List.map show_bool |> String.join " AND "
+      | Or expr_lst ->
+          expr_lst |> List.map show_bool |> String.join " OR "
+      | Eq (e1, e2) ->
+          show e1 ^ " = " ^ show e2
+    in
+    let show_leaf = function
+      | Const x ->
+          Value.show x
+      | TableAttr iu ->
+          Table.Iu.show iu
+    in
+    match expr with
+    | Leaf leaf ->
+        show_leaf leaf
+    | BoolExpr bool ->
+        show_bool bool
 end
