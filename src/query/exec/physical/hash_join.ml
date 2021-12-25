@@ -2,6 +2,16 @@ open Storage
 open BatteriesExceptionless
 open Common
 
+module TupleHashtbl = Hashtbl.Make (struct
+  type t = Storage.Tuple.t
+
+  let equal = Storage.Tuple.eq
+
+  let hash = Storage.Tuple.hash %> Int64.to_int
+end)
+
+type hash_tbl = (Storage.Tuple.t * Table.Iu.t list) TupleHashtbl.t
+
 type state =
   | BuildHashtbl
   | ProbeRight
@@ -9,7 +19,7 @@ type state =
 type hash_join =
   { leftOp : op
   ; rightOp : op
-  ; hash_tbl : (Storage.Tuple.t, Storage.Tuple.t * Table.Iu.t list) Hashtbl.t
+  ; hash_tbl : hash_tbl
   ; (* which of the attributes in the tuple will be used as key for lhs and rhs *)
     hash_key_ius : Table.Iu.t list * Table.Iu.t list
   ; mutable buffered_tuples : (Storage.Tuple.t * Table.Iu.t list) list
@@ -22,11 +32,15 @@ let make ~leftOp ~rightOp ~hash_key_ius =
   HashJoin
     { leftOp
     ; rightOp
-    ; hash_tbl = Hashtbl.create 101
+    ; hash_tbl = TupleHashtbl.create 101
     ; hash_key_ius
     ; buffered_tuples = []
     ; state = BuildHashtbl
     }
+
+
+let has_iu root_has_iu iu join =
+  root_has_iu iu join.leftOp || root_has_iu iu join.rightOp
 
 
 let prepare _ join = join
@@ -41,7 +55,7 @@ let build_hashtbl_if_needed root_next ctx join =
   let rec build () =
     let add_key_val result =
       let key = to_hastbl_key (fst join.hash_key_ius) result in
-      Hashtbl.add join.hash_tbl key result
+      TupleHashtbl.add join.hash_tbl key result
     in
     Option.may (add_key_val %> build) @@ root_next ctx join.leftOp
   in
@@ -63,7 +77,7 @@ let rec consume_tuple root_next ctx join =
       let probe_tbl (tuple, schema) =
         let results =
           let key = to_hastbl_key (snd join.hash_key_ius) (tuple, schema) in
-          Hashtbl.find_all join.hash_tbl key
+          TupleHashtbl.find_all join.hash_tbl key
           |> List.map (fun (t, s) -> (tuple @ t, schema @ s))
         in
         join.buffered_tuples <- results ;

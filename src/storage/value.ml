@@ -1,14 +1,13 @@
 open BatteriesExceptionless
 
 type t =
-  | Integer of int
-  | Numeric of (int * int) * int
+  | Integer of int64
+  | Numeric of (int * int) * int64
   | Char of string
   | VarChar of string
   | StringLiteral of string
-  | Timestamp of int
+  | Timestamp of int64
   | Bool of bool
-
 
 let eq a b =
   match (a, b) with
@@ -35,7 +34,7 @@ let eq a b =
 let parse (t : Value_type.t) x =
   match t with
   | Integer ->
-      Integer (int_of_string x)
+      Integer (Int64.of_string x)
   | Numeric (len, precision) ->
       let trimmed_x = String.trim x in
       let is_neg = trimmed_x.[0] = '-' in
@@ -79,22 +78,50 @@ let parse (t : Value_type.t) x =
       in
       if digits_seen > len || digits_seen_fraction > precision
       then failwith "invalid number format: loosing precision" ;
-      Numeric ((len, precision), if is_neg then -numeric_val else numeric_val)
+      let int64_val = Int64.of_int numeric_val in
+      Numeric ((len, precision), if is_neg then Int64.neg int64_val else int64_val)
   (* TODO: add tests for parsing *)
   | Char _ ->
       Char x
   | VarChar _ ->
       VarChar x
   | Timestamp ->
-      Timestamp (int_of_string x)
+      Timestamp (Int64.of_string x)
+
+
+let hash_int x =
+  x
+  |> Int64.logxor 88172645463325252L
+  |> fun x ->
+  Int64.logxor x @@ Int64.shift_left x 13
+  |> fun x ->
+  Int64.logxor x @@ Int64.shift_right x 7
+  |> fun x -> Int64.logxor x @@ Int64.shift_left x 17
+
+
+let hash = function
+  | Integer x ->
+      hash_int x
+  | Numeric ((_, _), x) ->
+      hash_int x
+  | Char _ ->
+      Int64.of_int 1
+  | VarChar _ ->
+      Int64.of_int 1
+  | StringLiteral _ ->
+      Int64.of_int 1
+  | Timestamp x ->
+      hash_int x
+  | Bool x ->
+      Int64.of_int @@ Bool.to_int x
 
 
 let show = function
   | Integer x ->
-      string_of_int x
+      Int64.to_string x
   | Numeric ((_, precision), x) ->
-      let tmp = Int.pow  10 precision in
-      string_of_int (x / tmp) ^ "." ^ string_of_int (x mod tmp)
+      let tmp = Int64.pow (Int64.of_int 10) (Int64.of_int precision) in
+      Int64.to_string (Int64.div x tmp) ^ "." ^ Int64.to_string(Int64.modulo x tmp)
   | Char x ->
       x
   | VarChar x ->
@@ -102,6 +129,6 @@ let show = function
   | StringLiteral x ->
       x
   | Timestamp x ->
-      string_of_int x
+      Int64.to_string x
   | Bool x ->
       string_of_bool x

@@ -12,7 +12,7 @@ let make_expr db pred =
   in
   let make_const = function
     | Int i ->
-        Match.Expr.Leaf (Match.Expr.Const (Value.Integer i))
+        Match.Expr.Leaf (Match.Expr.Const (Value.Integer (Int64.of_int i)))
     | Str s ->
         Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s))
   in

@@ -12,6 +12,8 @@ type op += Selection of selection
 
 let make ~predicate ~childOp = Selection { predicate; childOp }
 
+let has_iu root_has_iu iu selection = root_has_iu iu selection.childOp
+
 let prepare _ selection = selection
 
 let next root_next ctx selection =

@@ -11,6 +11,8 @@ type op += Projection of projection
 
 let make ~attributes ~childOp = Projection { attributes; childOp }
 
+let has_iu root_has_iu iu projection = root_has_iu iu projection.childOp
+
 let prepare _ projection = projection
 
 let next root_next ctx projection =

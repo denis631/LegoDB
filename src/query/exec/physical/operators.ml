@@ -2,7 +2,19 @@ open BatteriesExceptionless
 
 type exec_ctx = unit
 
+let rec has_iu iu = function
+  | Table_scan.TableScan tbl_scan ->
+      Table_scan.has_iu has_iu iu tbl_scan
+  | Selection.Selection selection ->
+      Selection.has_iu has_iu iu selection
+  | Projection.Projection projection ->
+      Projection.has_iu has_iu iu projection
+  | Hash_join.HashJoin join ->
+      Hash_join.has_iu has_iu iu join
+  | _ ->
+      failwith "unhandled case"
 
+(* FIXME: prepare functions on ops are not called *)
 let rec prepare ius = function
   | Table_scan.TableScan tbl_scan ->
       Table_scan.TableScan (Table_scan.prepare ius tbl_scan)
