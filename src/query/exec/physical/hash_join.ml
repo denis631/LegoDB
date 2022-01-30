@@ -17,8 +17,8 @@ type state =
   | ProbeRight
 
 type hash_join =
-  { leftOp : op
-  ; rightOp : op
+  { left_op : op
+  ; right_op : op
   ; hash_tbl : hash_tbl
   ; (* which of the attributes in the tuple will be used as key for lhs and rhs *)
     hash_key_ius : Table.Iu.t list * Table.Iu.t list
@@ -28,10 +28,10 @@ type hash_join =
 
 type op += HashJoin of hash_join
 
-let make ~leftOp ~rightOp ~hash_key_ius =
+let make ~left_op ~right_op ~hash_key_ius =
   HashJoin
-    { leftOp
-    ; rightOp
+    { left_op
+    ; right_op
     ; hash_tbl = TupleHashtbl.create 101
     ; hash_key_ius
     ; buffered_tuples = []
@@ -40,7 +40,7 @@ let make ~leftOp ~rightOp ~hash_key_ius =
 
 
 let has_iu root_has_iu iu join =
-  root_has_iu iu join.leftOp || root_has_iu iu join.rightOp
+  root_has_iu iu join.left_op || root_has_iu iu join.right_op
 
 
 let prepare _ join = join
@@ -57,7 +57,7 @@ let build_hashtbl_if_needed root_next ctx join =
       let key = to_hastbl_key (fst join.hash_key_ius) result in
       TupleHashtbl.add join.hash_tbl key result
     in
-    Option.may (add_key_val %> build) @@ root_next ctx join.leftOp
+    Option.may (add_key_val %> build) @@ root_next ctx join.left_op
   in
   match join.state with
   | BuildHashtbl ->
@@ -84,7 +84,7 @@ let rec consume_tuple root_next ctx join =
         consume_tuple root_next ctx join
       in
       let open Option.Infix in
-      root_next ctx join.rightOp >>= probe_tbl
+      root_next ctx join.right_op >>= probe_tbl
 
 
 let next root_next ctx join =

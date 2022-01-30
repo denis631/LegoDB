@@ -10,7 +10,7 @@ let parse schema data =
   |> List.map2 Value.parse (List.map snd schema)
 
 
-let hash t = List.map Value.hash t |> List.reduce Int64.logxor
+let hash t = List.map Value.hash t |> List.reduce Int64.logxor |> Option.get
 
 let get = List.nth
 

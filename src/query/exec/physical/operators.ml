@@ -21,15 +21,15 @@ let rec prepare ius = function
   | Selection.Selection selection ->
       Selection.make
         ~predicate:selection.predicate
-        ~childOp:(prepare ius selection.childOp)
+        ~child_op:(prepare ius selection.child_op)
   | Projection.Projection projection ->
       Projection.make
         ~attributes:projection.attributes
-        ~childOp:(prepare ius projection.childOp)
+        ~child_op:(prepare ius projection.child_op)
   | Hash_join.HashJoin join ->
     Hash_join.make
-      ~leftOp:(prepare ius join.leftOp)
-      ~rightOp:(prepare ius join.rightOp)
+      ~left_op:(prepare ius join.left_op)
+      ~right_op:(prepare ius join.right_op)
       ~hash_key_ius:join.hash_key_ius
   | _ ->
       failwith "unhandled case"

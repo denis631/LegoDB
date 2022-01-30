@@ -5,20 +5,20 @@ open Common
 
 type selection =
   { predicate : Match.Expr.bool
-  ; childOp : op
+  ; child_op : op
   }
 
 type op += Selection of selection
 
-let make ~predicate ~childOp = Selection { predicate; childOp }
+let make ~predicate ~child_op = Selection { predicate; child_op }
 
-let has_iu root_has_iu iu selection = root_has_iu iu selection.childOp
+let has_iu root_has_iu iu selection = root_has_iu iu selection.child_op
 
 let prepare _ selection = selection
 
 let next root_next ctx selection =
   let rec probe () =
-    match root_next ctx selection.childOp with
+    match root_next ctx selection.child_op with
     | Some x ->
         let is_true = Value.eq @@ Value.Bool true in
         if is_true

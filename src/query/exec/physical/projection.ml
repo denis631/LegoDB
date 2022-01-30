@@ -4,19 +4,19 @@ open Common
 
 type projection =
   { attributes : Table.Iu.t list
-  ; childOp : op
+  ; child_op : op
   }
 
 type op += Projection of projection
 
-let make ~attributes ~childOp = Projection { attributes; childOp }
+let make ~attributes ~child_op = Projection { attributes; child_op }
 
-let has_iu root_has_iu iu projection = root_has_iu iu projection.childOp
+let has_iu root_has_iu iu projection = root_has_iu iu projection.child_op
 
 let prepare _ projection = projection
 
 let next root_next ctx projection =
-  match root_next ctx projection.childOp with
+  match root_next ctx projection.child_op with
   | Some (tuple, schema) ->
       let unzip coll =
         let xs = List.map fst coll in
