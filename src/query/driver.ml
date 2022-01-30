@@ -66,7 +66,7 @@ let run db ast f =
   let tree =
     ast
     |> make_operator_tree db
-    |> tap (fun tree -> print_endline (Logical.Operators.show tree))
+    |> tap @@ Logical.Operators.show %> print_endline
     |> Optimizer.optimize
     |> Physical.Operators.prepare []
   in
