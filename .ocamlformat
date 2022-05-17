@@ -1,2 +1,2 @@
-version=0.18.0
-profile = sparse
+profile = default
+version = 0.21.0
