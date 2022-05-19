@@ -45,15 +45,40 @@ module C_Bindings = struct
   end
 
   module Session = struct
-    let _ = field session_t "connection" (ptr connection_t)
+    (* static const WT_SESSION *)
+    (*   stds = {NULL, NULL, __session_close, __session_reconfigure, __session_flush_tier, *)
+    (*     __wt_session_strerror, __session_open_cursor, __session_alter, __session_create, *)
+    (*     __wt_session_compact, __session_drop, __session_join, __session_log_flush, *)
+    (*     __session_log_printf, __session_rename, __session_reset, __session_salvage, *)
+    (*     __session_truncate, __session_upgrade, __session_verify, __session_begin_transaction, *)
+    (*     __session_commit_transaction, __session_prepare_transaction, __session_rollback_transaction, *)
+    (*     __session_query_timestamp, __session_timestamp_transaction, *)
+    (*     __session_timestamp_transaction_uint, __session_checkpoint, __session_reset_snapshot, *)
+    (*     __session_transaction_pinned_range, __session_get_rollback_reason, __wt_session_breakpoint}; *)
 
-    (* int __F(create)(WT_SESSION *session,
-                       const char *name,
-                       const char *config); *)
+    let _ = field session_t "connection" (ptr connection_t)
+    let _ = field session_t "app_private" (ptr void)
+
+    (* int __F(close)(WT_SESSION *session, const char *config); *)
     let _ =
-      field session_t "create"
+      field session_t "close"
+        (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+    (* int __F(reconfigure)(WT_SESSION *session, const char *config); *)
+    let _ =
+      field session_t "reconfigure"
+        (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+    (* int __F(flush_tier)(WT_SESSION *session, const char *config); *)
+    let _ =
+      field session_t "flush_tier"
+        (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+    (* const char *__F(strerror)(WT_SESSION *session, int error); *)
+    let _ =
+      field session_t "strerror"
         (funptr
-           (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+           (ptr session_t @-> Ctypes.string @-> int @-> returning Ctypes.string))
 
     (* int __F(open_cursor)(WT_SESSION *session,
                             const char *uri,
@@ -66,6 +91,22 @@ module C_Bindings = struct
            (ptr session_t @-> Ctypes.string @-> ptr void @-> Ctypes.string
            @-> ptr (ptr cursor_t)
            @-> returning int))
+
+    (* int __F(alter)(WT_SESSION *session,
+                      const char *name,
+                      const char *config); *)
+    let _ =
+      field session_t "alter"
+        (funptr
+           (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+    (* int __F(create)(WT_SESSION *session,
+                       const char *name,
+                       const char *config); *)
+    let create =
+      field session_t "create"
+        (funptr
+           (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
 
     let () = seal session_t
   end
@@ -283,12 +324,10 @@ type table_name = string
 let create_tbl ~db ~tbl_name ~config =
   let session_ptr = snd db in
   assert (session_ptr != from_voidp session_t null);
-  print_endline tbl_name;
-  print_endline config
-(* let create_tbl_f = !@(session_ptr |-> C_Bindings.Session.create) in *)
-(* print_endline "managed to be here"; *)
-(* let code = create_tbl_f session_ptr ("table:" ^ tbl_name) config in *)
-(* if code != 0 then failwith "Couldn't create the session" *)
+  let create_tbl_f = !@(session_ptr |-> C_Bindings.Session.create) in
+  print_endline "managed to be here";
+  let code = create_tbl_f session_ptr ("table:" ^ tbl_name) config in
+  if code != 0 then failwith "Couldn't create the session"
 
 (* TODO: implement creating a item from data, the size field should be calculated based on data length *)
 (* let make_item data = *)
