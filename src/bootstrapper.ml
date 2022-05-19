@@ -15,7 +15,7 @@ let load_tpcc () =
   in
   let parse_tbl db tbl_name tbl_schema tuples_raw =
     let tbl = Table.create tbl_name tbl_schema in
-    Database.insert db tbl ;
+    Database.create_tbl db tbl;
     let tuples_parsed = map (Tuple.parse tbl_schema) tuples_raw in
     List.iter (Table.insert tbl) tuples_parsed
   in

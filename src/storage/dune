@@ -1,5 +1,6 @@
 (library
  (name storage)
  (libraries
+   wired_tiger
 
    batteries))

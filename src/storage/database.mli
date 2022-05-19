@@ -2,6 +2,8 @@ type t
 
 val create: unit -> t
 
+val db_ref: t -> Wired_tiger.t
+
 val tbls: t -> Table.t list
 
-val insert: t -> Table.t -> unit
+val create_tbl: t -> Table.t -> unit
