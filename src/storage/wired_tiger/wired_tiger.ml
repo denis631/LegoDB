@@ -6,42 +6,63 @@ module C_Bindings = struct
   type connection_t
   type cursor_t
   type event_handler_t
+  (* type item_t *)
 
   let session_t : session_t structure typ = structure "__wt_session"
   let connection_t : connection_t structure typ = structure "__wt_connection"
-  let cursor_t : cursor_t structure typ = structure "__wt_cursor"
 
   let event_handler_t : event_handler_t structure typ =
     structure "__wt_event_handler"
 
-  (* module Item = struct *)
-  (*   type item_t *)
+  let cursor_t : cursor_t structure typ = structure "__wt_cursor"
+  (* let item_t : item_t structure typ = structure "__wt_item" *)
 
-  (*   let item_t : item_t structure typ = structure "__wt_item" *)
-
-  (*   let data = field item_t "data" (ptr void) *)
-
-  (*   let size = field item_t "size" size_t *)
-
-  (*   let () = seal item_t *)
-  (* end *)
+  module Item = struct
+    (* let data = field item_t "data" (ptr void) *)
+    (* let size = field item_t "size" size_t *)
+    (* let () = seal item_t *)
+  end
 
   module Cursor = struct
-    (*   (\* void __F(set_key)(WT_CURSOR *cursor, ...); *\) *)
-    (*   let set_key = *)
-    (*     field cursor_t "set_key" *)
-    (*       (funptr (ptr cursor_t @-> ptr Item.item_t @-> returning void)) *)
+    (* WT_CURSOR_STATIC_INIT(iface, __wt_curtable_get_key, /* get-key */ *)
+    (*   __wt_curtable_get_value,                          /* get-value */ *)
+    (*   __wt_curtable_set_key,                            /* set-key */ *)
+    (*   __wt_curtable_set_value,                          /* set-value */ *)
+    (*   __curtable_compare,                               /* compare */ *)
+    (*   __wt_cursor_equals,                               /* equals */ *)
+    (*   __curtable_next,                                  /* next */ *)
+    (*   __curtable_prev,                                  /* prev */ *)
+    (*   __curtable_reset,                                 /* reset */ *)
+    (*   __curtable_search,                                /* search */ *)
+    (*   __curtable_search_near,                           /* search-near */ *)
+    (*   __curtable_insert,                                /* insert */ *)
+    (*   __wt_cursor_modify_notsup,                        /* modify */ *)
+    (*   __curtable_update,                                /* update */ *)
+    (*   __curtable_remove,                                /* remove */ *)
+    (*   __curtable_reserve,                               /* reserve */ *)
+    (*   __wt_cursor_reconfigure,                          /* reconfigure */ *)
+    (*   __curtable_largest_key,                           /* largest_key */ *)
+    (*   __curtable_bound,                                 /* bound */ *)
+    (*   __wt_cursor_notsup,                               /* cache */ *)
+    (*   __wt_cursor_reopen_notsup,                        /* reopen */ *)
+    (*   __wt_cursor_checkpoint_id,                        /* checkpoint ID */ *)
+    (*   __curtable_close);                                /* close */ *)
 
-    (*   (\* void __F(set_value)(WT_CURSOR *cursor, ...); *\) *)
-    (*   let set_value = *)
-    (*     field cursor_t "set_value" *)
-    (*       (funptr (ptr cursor_t @-> ptr Item.item_t @-> returning void)) *)
+    (* void __F(set_key)(WT_CURSOR *cursor, ...); *)
+    (* let set_key = *)
+    (*   field cursor_t "set_key" *)
+    (*     (funptr (ptr cursor_t @-> ptr item_t @-> returning void)) *)
 
-    (*   (\* int __F(insert)(WT_CURSOR *cursor); *\) *)
-    (*   let insert = *)
-    (*     field cursor_t "insert" (funptr (ptr cursor_t @-> returning int)) *)
+    (* void __F(set_value)(WT_CURSOR *cursor, ...); *)
+    (* let set_value = *)
+    (*   field cursor_t "set_value" *)
+    (*     (funptr (ptr cursor_t @-> ptr item_t @-> returning void)) *)
 
-    (*   let () = seal cursor_t *)
+    (* int __F(insert)(WT_CURSOR *cursor); *)
+    (* let insert = *)
+    (*   field cursor_t "insert" (funptr (ptr cursor_t @-> returning int)) *)
+
+    (* let () = seal cursor_t *)
   end
 
   module Session = struct
@@ -268,14 +289,11 @@ type session_t = C_Bindings.session_t structure
 
 let connection_t = C_Bindings.connection_t
 let session_t = C_Bindings.session_t
-
-(* let cursor_t = C_Bindings.cursor_t *)
 let event_handler_t = C_Bindings.event_handler_t
+(* let cursor_t = C_Bindings.cursor_t *)
+(* let item_t = C_Bindings.item_t *)
 
-(* let cursor_t = C_Bindings.Cursor.cursor_t *)
-(* let item_t = C_Bindings.Item.item_t *)
-
-type t = connection_t ptr * session_t ptr
+type t = ConnectionPtr of connection_t ptr | SessionPtr of session_t ptr
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -302,32 +320,40 @@ let init ~path ~config =
   in
   if code != 0 then failwith "Couldn't create the database";
   assert (not (is_null !@conn_ptr_ptr));
-  (!@conn_ptr_ptr, from_voidp session_t null)
+  ConnectionPtr !@conn_ptr_ptr
 
 let open_session ~db ~config =
-  let conn_ptr = fst db in
-  assert (not (is_null conn_ptr));
-  let session_ptr_ptr = allocate (ptr session_t) (from_voidp session_t null) in
-  let open_session_f = !@(conn_ptr |-> C_Bindings.Connection.open_session) in
-  let code =
-    open_session_f conn_ptr
-      (from_voidp event_handler_t null)
-      (IsolationLevelConfig.show config)
-      session_ptr_ptr
-  in
-  if code != 0 then failwith "Couldn't create the session";
-  assert (not (is_null !@session_ptr_ptr));
-  (conn_ptr, !@session_ptr_ptr)
+  match db with
+  | ConnectionPtr conn_ptr ->
+      assert (not (is_null conn_ptr));
+      let session_ptr_ptr =
+        allocate (ptr session_t) (from_voidp session_t null)
+      in
+      let open_session_f =
+        !@(conn_ptr |-> C_Bindings.Connection.open_session)
+      in
+      let code =
+        open_session_f conn_ptr
+          (from_voidp event_handler_t null)
+          (IsolationLevelConfig.show config)
+          session_ptr_ptr
+      in
+      if code != 0 then failwith "Couldn't create the session";
+      assert (not (is_null !@session_ptr_ptr));
+      SessionPtr !@session_ptr_ptr
+  | SessionPtr _ ->
+      failwith "There is already an existing session that is opened"
 
 type table_name = string
 
 let create_tbl ~db ~tbl_name ~config =
-  let session_ptr = snd db in
-  assert (session_ptr != from_voidp session_t null);
-  let create_tbl_f = !@(session_ptr |-> C_Bindings.Session.create) in
-  print_endline "managed to be here";
-  let code = create_tbl_f session_ptr ("table:" ^ tbl_name) config in
-  if code != 0 then failwith "Couldn't create the session"
+  match db with
+  | SessionPtr session_ptr ->
+      assert (session_ptr != from_voidp session_t null);
+      let create_tbl_f = !@(session_ptr |-> C_Bindings.Session.create) in
+      let code = create_tbl_f session_ptr ("table:" ^ tbl_name) config in
+      if code != 0 then failwith "Couldn't create the session"
+  | ConnectionPtr _ -> failwith "There is no open session"
 
 (* TODO: implement creating a item from data, the size field should be calculated based on data length *)
 (* let make_item data = *)
@@ -353,4 +379,4 @@ let create_tbl ~db ~tbl_name ~config =
 (*   (\* perform cursor insert *\) *)
 (*   let insert_f = getf !@cursor_ptr C_Bindings.Cursor.insert in *)
 (*   let code = insert_f cursor_ptr in *)
-(*   if code != 0 then failwith "Couldn't insert data with the cursor"; *)
+(*   if code != 0 then failwith "Couldn't insert data with the cursor" *)
