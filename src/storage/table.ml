@@ -1,9 +1,9 @@
 type name = string
 
 type t = {
+  mutable db_ref : Wired_tiger.t;
   name : name;
   mutable schema : Schema.t;
-  mutable tuples : Tuple.t BatVect.t;
 }
 
 type parent = t
@@ -17,25 +17,25 @@ module Iu = struct
 end
 
 module Iter = struct
-  type t = { tuples : Tuple.t BatVect.t; mutable idx : int }
+  type t = unit -> (string * string) option
 
-  let make (tbl : parent) = { tuples = tbl.tuples; idx = 0 }
+  let make tbl = Wired_tiger.scan ~db:tbl.db_ref ~tbl_name:tbl.name
 
   let next iter =
-    match BatVect.length iter.tuples with
-    | l when iter.idx < l ->
-        let res = Some (BatVect.get iter.tuples iter.idx) in
-        iter.idx <- iter.idx + 1;
-        res
-    | _ -> None
+    match iter () with
+    | Some (key, value) ->
+        print_endline @@ "key: " ^ key ^ " | value: " ^ value;
+        None
+    | None -> None
 end
 
 let name tbl = tbl.name
 let schema tbl = tbl.schema
-let create name schema = { name; schema; tuples = BatVect.empty }
+let create db_ref name schema = { db_ref; name; schema }
 
-let insert db tbl record =
-  print_endline @@ Tuple.show record;
-  Wired_tiger.insert_record ~db ~tbl_name:tbl.name ~key:"abcd" ~record:"abcd"
+let insert tbl _ =
+  (* print_endline @@ Tuple.show record; *)
+  Wired_tiger.insert_record ~db:tbl.db_ref ~tbl_name:tbl.name ~key:"custom key"
+    ~record:"custom value"
 
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema

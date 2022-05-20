@@ -16,13 +16,11 @@ val open_session : db:t -> config:IsolationLevelConfig.t -> t
 (* (\* TODO: collection ops *\) *)
 type tbl_name = string
 
-module TblCreationConfig : sig
-  type t = string
-end
-
-val create_tbl : db:t -> tbl_name:tbl_name -> config:TblCreationConfig.t -> unit
+val create_tbl : db:t -> tbl_name:tbl_name -> config:string -> unit
 
 (* (\* TODO: records operations *\) *)
 val insert_record :
   db:t -> tbl_name:tbl_name -> key:string -> record:string -> unit
-(* val lookup_one: t -> string -> string *)
+
+val lookup_one : db:t -> tbl_name:tbl_name -> key:string -> string option
+val scan : db:t -> tbl_name:tbl_name -> unit -> (string * string) option

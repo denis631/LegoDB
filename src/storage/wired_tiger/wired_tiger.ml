@@ -30,12 +30,12 @@ module C_Bindings = struct
     let _ = field cursor_t "value_format" Ctypes.string
 
     (* int __F(get_key)(WT_CURSOR *cursor, ...); *)
-    let _ =
+    let get_key =
       field cursor_t "get_key"
         (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
 
     (* int __F(get_value)(WT_CURSOR *cursor, ...); *)
-    let _ =
+    let get_value =
       field cursor_t "get_value"
         (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
 
@@ -60,19 +60,19 @@ module C_Bindings = struct
         (funptr (ptr cursor_t @-> ptr cursor_t @-> ptr int @-> returning int))
 
     (* int __F(next)(WT_CURSOR *cursor); *)
-    let _ = field cursor_t "next" (funptr (ptr cursor_t @-> returning int))
+    let next = field cursor_t "next" (funptr (ptr cursor_t @-> returning int))
 
     (* int __F(prev)(WT_CURSOR *cursor); *)
     let _ = field cursor_t "prev" (funptr (ptr cursor_t @-> returning int))
 
     (* int __F(reset)(WT_CURSOR *cursor); *)
-    let _ = field cursor_t "reset" (funptr (ptr cursor_t @-> returning int))
+    let reset = field cursor_t "reset" (funptr (ptr cursor_t @-> returning int))
 
     (* int __F(search)(WT_CURSOR *cursor); *)
     let _ = field cursor_t "search" (funptr (ptr cursor_t @-> returning int))
 
     (* int __F(search_near)(WT_CURSOR *cursor, int *exactp); *)
-    let _ =
+    let search_near =
       field cursor_t "search_near"
         (funptr (ptr cursor_t @-> ptr int @-> returning int))
 
@@ -385,10 +385,6 @@ module IsolationLevelConfig = struct
     | ReadCommitted -> "isolation=read_committed"
 end
 
-module TblCreationConfig = struct
-  type t = string
-end
-
 (* let print_ptr ptr str = *)
 (*   ptr |> to_voidp |> raw_address_of_ptr *)
 (*   |> Printf.printf "Address of %s is: 0x%nx\n" str *)
@@ -447,25 +443,22 @@ let make_item data =
     (CArray.length char_array * i |> Unsigned.Size_t.of_int);
   item
 
+(* Open a cursor if needed *)
+(* TODO: cache the cursors, or maybe cache them in a batch insert? *)
+let open_tbl_cursor ~session_ptr ~tbl_name =
+  let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
+  let open_cursor_f = getf !@session_ptr C_Bindings.Session.open_cursor in
+  let code =
+    open_cursor_f session_ptr ("table:" ^ tbl_name) null "raw" cursor_ptr_ptr
+  in
+  if code != 0 then failwith "Couldn't open a cursor";
+  assert (not (is_null !@cursor_ptr_ptr));
+  !@cursor_ptr_ptr
+
 let insert_record ~db ~tbl_name ~key ~record =
   match db with
   | SessionPtr session_ptr ->
       assert (session_ptr != from_voidp session_t null);
-      (* Open a cursor if needed *)
-      (* TODO: cache the cursors, or maybe cache them in a batch insert? *)
-      let open_cursor () =
-        let cursor_ptr_ptr =
-          allocate (ptr cursor_t) (from_voidp cursor_t null)
-        in
-        let open_cursor_f = getf !@session_ptr C_Bindings.Session.open_cursor in
-        let code =
-          open_cursor_f session_ptr ("table:" ^ tbl_name) null "raw"
-            cursor_ptr_ptr
-        in
-        if code != 0 then failwith "Couldn't open a cursor";
-        assert (not (is_null !@cursor_ptr_ptr));
-        !@cursor_ptr_ptr
-      in
       (* TODO: set key and payload item *)
       let set_data cursor_ptr =
         let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
@@ -478,7 +471,69 @@ let insert_record ~db ~tbl_name ~key ~record =
         let code = insert_f cursor_ptr in
         if code != 0 then failwith "Couldn't insert data with the cursor"
       in
-      let cursor_ptr = open_cursor () in
+      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
       set_data cursor_ptr;
       perform_write cursor_ptr
+  | ConnectionPtr _ -> failwith "There is no open session"
+
+let lookup_one ~db ~tbl_name ~key =
+  match db with
+  | SessionPtr session_ptr ->
+      assert (session_ptr != from_voidp session_t null);
+      print_endline "WE ARE HERE";
+      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
+      let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
+      set_key_f cursor_ptr (allocate item_t (make_item key));
+      let item_ptr = allocate item_t (make item_t) in
+      let get_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_value) in
+      let code = get_value_f cursor_ptr item_ptr in
+      if code != 0 then None
+      else
+        let code = !@(cursor_ptr |-> C_Bindings.Cursor.reset) cursor_ptr in
+        if code != 0 then failwith "Couldn't reset the cursor";
+        Some "SOME RESPONSE"
+  | ConnectionPtr _ -> failwith "There is no open session"
+
+let scan ~db ~tbl_name =
+  match db with
+  | SessionPtr session_ptr ->
+      assert (session_ptr != from_voidp session_t null);
+      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
+      let minKey = make_item "" in
+      let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
+      set_key_f cursor_ptr (allocate item_t minKey);
+      let next_f = !@(cursor_ptr |-> C_Bindings.Cursor.next) in
+
+      let search_near_f = !@(cursor_ptr |-> C_Bindings.Cursor.search_near) in
+      let exact_ptr = allocate int 0 in
+      let code =
+        let code = search_near_f cursor_ptr exact_ptr in
+        if !@exact_ptr < 0 then next_f cursor_ptr else code
+      in
+      let cur_code : int Stdlib.ref = { contents = code } in
+      let next () =
+        if cur_code.contents != 0 then None
+        else
+          let key_ptr = allocate item_t (make item_t) in
+          let get_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_key) in
+          let _ = get_key_f cursor_ptr key_ptr in
+          let key =
+            Ctypes.string_from_ptr
+              (from_voidp char !@(key_ptr |-> C_Bindings.Item.data))
+              ~length:
+                (Unsigned.Size_t.to_int !@(key_ptr |-> C_Bindings.Item.size))
+          in
+          let value_ptr = allocate item_t (make item_t) in
+          let get_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_value) in
+          let _ = get_value_f cursor_ptr value_ptr in
+          let value =
+            Ctypes.string_from_ptr
+              (from_voidp char !@(value_ptr |-> C_Bindings.Item.data))
+              ~length:
+                (Unsigned.Size_t.to_int !@(value_ptr |-> C_Bindings.Item.size))
+          in
+          cur_code := next_f cursor_ptr;
+          Some (key, value)
+      in
+      next
   | ConnectionPtr _ -> failwith "There is no open session"
