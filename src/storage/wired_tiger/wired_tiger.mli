@@ -18,9 +18,9 @@ type tbl_name = string
 
 val create_tbl : db:t -> tbl_name:tbl_name -> config:string -> unit
 
-(* (\* TODO: records operations *\) *)
+(* TODO: records operations *)
 val insert_record :
-  db:t -> tbl_name:tbl_name -> key:string -> record:string -> unit
+  db:t -> tbl_name:tbl_name -> key:bytes -> record:bytes -> unit
 
-val lookup_one : db:t -> tbl_name:tbl_name -> key:string -> string option
-val scan : db:t -> tbl_name:tbl_name -> unit -> (string * string) option
+val lookup_one : db:t -> tbl_name:tbl_name -> key:bytes -> bytes option
+val scan : db:t -> tbl_name:tbl_name -> unit -> (bytes * bytes) option

@@ -433,15 +433,20 @@ let create_tbl ~db ~tbl_name ~config =
       if code != 0 then failwith "Couldn't create the session"
   | ConnectionPtr _ -> failwith "There is no open session"
 
-(* TODO: implement creating a item from data, the size field should be calculated based on data length *)
-let make_item data =
-  let item = make item_t in
-  let char_array = CArray.of_string data in
-  let i = sizeof char in
-  setf item C_Bindings.Item.data (CArray.start char_array |> to_voidp);
-  setf item C_Bindings.Item.size
-    (CArray.length char_array * i |> Unsigned.Size_t.of_int);
-  item
+module Item = struct
+  let of_bytes data =
+    let item = make item_t in
+    let array = CArray.of_list char (Bytes.to_seq data |> List.of_seq) in
+    setf item C_Bindings.Item.data (CArray.start array |> to_voidp);
+    setf item C_Bindings.Item.size (Unsigned.Size_t.of_int @@ Bytes.length data);
+    item
+
+  let to_bytes item =
+    let data = getf item C_Bindings.Item.data in
+    let size = getf item C_Bindings.Item.size |> Unsigned.Size_t.to_int in
+    let array = CArray.from_ptr (from_voidp char data) size in
+    Bytes.init size (CArray.get array)
+end
 
 (* Open a cursor if needed *)
 (* TODO: cache the cursors, or maybe cache them in a batch insert? *)
@@ -459,12 +464,11 @@ let insert_record ~db ~tbl_name ~key ~record =
   match db with
   | SessionPtr session_ptr ->
       assert (session_ptr != from_voidp session_t null);
-      (* TODO: set key and payload item *)
       let set_data cursor_ptr =
         let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
         let set_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_value) in
-        set_key_f cursor_ptr (allocate item_t (make_item key));
-        set_value_f cursor_ptr (allocate item_t (make_item record))
+        set_key_f cursor_ptr (allocate item_t (Item.of_bytes key));
+        set_value_f cursor_ptr (allocate item_t (Item.of_bytes record))
       in
       let perform_write cursor_ptr =
         let insert_f = !@(cursor_ptr |-> C_Bindings.Cursor.insert) in
@@ -480,10 +484,9 @@ let lookup_one ~db ~tbl_name ~key =
   match db with
   | SessionPtr session_ptr ->
       assert (session_ptr != from_voidp session_t null);
-      print_endline "WE ARE HERE";
       let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
       let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
-      set_key_f cursor_ptr (allocate item_t (make_item key));
+      set_key_f cursor_ptr (allocate item_t (Item.of_bytes key));
       let item_ptr = allocate item_t (make item_t) in
       let get_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_value) in
       let code = get_value_f cursor_ptr item_ptr in
@@ -491,7 +494,7 @@ let lookup_one ~db ~tbl_name ~key =
       else
         let code = !@(cursor_ptr |-> C_Bindings.Cursor.reset) cursor_ptr in
         if code != 0 then failwith "Couldn't reset the cursor";
-        Some "SOME RESPONSE"
+        Some (Bytes.of_string "SOME RESPONSE")
   | ConnectionPtr _ -> failwith "There is no open session"
 
 let scan ~db ~tbl_name =
@@ -499,7 +502,7 @@ let scan ~db ~tbl_name =
   | SessionPtr session_ptr ->
       assert (session_ptr != from_voidp session_t null);
       let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
-      let minKey = make_item "" in
+      let minKey = Item.of_bytes (Bytes.init 1 (fun _ -> Char.chr 0)) in
       let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
       set_key_f cursor_ptr (allocate item_t minKey);
       let next_f = !@(cursor_ptr |-> C_Bindings.Cursor.next) in
@@ -510,28 +513,19 @@ let scan ~db ~tbl_name =
         let code = search_near_f cursor_ptr exact_ptr in
         if !@exact_ptr < 0 then next_f cursor_ptr else code
       in
-      let cur_code : int Stdlib.ref = { contents = code } in
+      let cur_code = Stdlib.ref code in
       let next () =
         if cur_code.contents != 0 then None
         else
-          let key_ptr = allocate item_t (make item_t) in
-          let get_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_key) in
-          let _ = get_key_f cursor_ptr key_ptr in
-          let key =
-            Ctypes.string_from_ptr
-              (from_voidp char !@(key_ptr |-> C_Bindings.Item.data))
-              ~length:
-                (Unsigned.Size_t.to_int !@(key_ptr |-> C_Bindings.Item.size))
+          let get_field field =
+            let item_ptr = allocate item_t (make item_t) in
+            let get_key_f = !@(cursor_ptr |-> field) in
+            let _ = get_key_f cursor_ptr item_ptr in
+            !@item_ptr
           in
-          let value_ptr = allocate item_t (make item_t) in
-          let get_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_value) in
-          let _ = get_value_f cursor_ptr value_ptr in
-          let value =
-            Ctypes.string_from_ptr
-              (from_voidp char !@(value_ptr |-> C_Bindings.Item.data))
-              ~length:
-                (Unsigned.Size_t.to_int !@(value_ptr |-> C_Bindings.Item.size))
-          in
+          let field_to_bytes field = field |> get_field |> Item.to_bytes in
+          let key = field_to_bytes C_Bindings.Cursor.get_key in
+          let value = field_to_bytes C_Bindings.Cursor.get_value in
           cur_code := next_f cursor_ptr;
           Some (key, value)
       in
