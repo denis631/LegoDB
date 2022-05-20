@@ -33,5 +33,9 @@ end
 let name tbl = tbl.name
 let schema tbl = tbl.schema
 let create name schema = { name; schema; tuples = BatVect.empty }
-let insert tbl tuple = tbl.tuples <- BatVect.append tuple tbl.tuples
+
+let insert db tbl record =
+  print_endline @@ Tuple.show record;
+  Wired_tiger.insert_record ~db ~tbl_name:tbl.name ~key:"abcd" ~record:"abcd"
+
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema

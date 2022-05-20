@@ -1,4 +1,4 @@
 (library
   (name      wired_tiger)
   (libraries ctypes.foreign)
-  (flags     :standard -cclib /Users/denis.grebennicov/Documents/lego_db/src/storage/wired_tiger/wiredtiger/build/libwiredtiger.dylib))
+  (flags     :standard -cclib /Users/denis.grebennicov/Documents/wiredtiger/build/libwiredtiger.dylib))

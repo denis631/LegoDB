@@ -6,7 +6,7 @@ module C_Bindings = struct
   type connection_t
   type cursor_t
   type event_handler_t
-  (* type item_t *)
+  type item_t
 
   let session_t : session_t structure typ = structure "__wt_session"
   let connection_t : connection_t structure typ = structure "__wt_connection"
@@ -15,54 +15,136 @@ module C_Bindings = struct
     structure "__wt_event_handler"
 
   let cursor_t : cursor_t structure typ = structure "__wt_cursor"
-  (* let item_t : item_t structure typ = structure "__wt_item" *)
+  let item_t : item_t structure typ = structure "__wt_item"
 
   module Item = struct
-    (* let data = field item_t "data" (ptr void) *)
-    (* let size = field item_t "size" size_t *)
-    (* let () = seal item_t *)
+    let data = field item_t "data" (ptr void)
+    let size = field item_t "size" size_t
+    let () = seal item_t
   end
 
   module Cursor = struct
-    (* WT_CURSOR_STATIC_INIT(iface, __wt_curtable_get_key, /* get-key */ *)
-    (*   __wt_curtable_get_value,                          /* get-value */ *)
-    (*   __wt_curtable_set_key,                            /* set-key */ *)
-    (*   __wt_curtable_set_value,                          /* set-value */ *)
-    (*   __curtable_compare,                               /* compare */ *)
-    (*   __wt_cursor_equals,                               /* equals */ *)
-    (*   __curtable_next,                                  /* next */ *)
-    (*   __curtable_prev,                                  /* prev */ *)
-    (*   __curtable_reset,                                 /* reset */ *)
-    (*   __curtable_search,                                /* search */ *)
-    (*   __curtable_search_near,                           /* search-near */ *)
-    (*   __curtable_insert,                                /* insert */ *)
-    (*   __wt_cursor_modify_notsup,                        /* modify */ *)
-    (*   __curtable_update,                                /* update */ *)
-    (*   __curtable_remove,                                /* remove */ *)
-    (*   __curtable_reserve,                               /* reserve */ *)
-    (*   __wt_cursor_reconfigure,                          /* reconfigure */ *)
-    (*   __curtable_largest_key,                           /* largest_key */ *)
-    (*   __curtable_bound,                                 /* bound */ *)
-    (*   __wt_cursor_notsup,                               /* cache */ *)
-    (*   __wt_cursor_reopen_notsup,                        /* reopen */ *)
-    (*   __wt_cursor_checkpoint_id,                        /* checkpoint ID */ *)
-    (*   __curtable_close);                                /* close */ *)
+    let _ = field cursor_t "session" (ptr session_t)
+    let _ = field cursor_t "uri" Ctypes.string
+    let _ = field cursor_t "key_format" Ctypes.string
+    let _ = field cursor_t "value_format" Ctypes.string
+
+    (* int __F(get_key)(WT_CURSOR *cursor, ...); *)
+    let _ =
+      field cursor_t "get_key"
+        (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
+
+    (* int __F(get_value)(WT_CURSOR *cursor, ...); *)
+    let _ =
+      field cursor_t "get_value"
+        (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
 
     (* void __F(set_key)(WT_CURSOR *cursor, ...); *)
-    (* let set_key = *)
-    (*   field cursor_t "set_key" *)
-    (*     (funptr (ptr cursor_t @-> ptr item_t @-> returning void)) *)
+    let set_key =
+      field cursor_t "set_key"
+        (funptr (ptr cursor_t @-> ptr item_t @-> returning void))
 
     (* void __F(set_value)(WT_CURSOR *cursor, ...); *)
-    (* let set_value = *)
-    (*   field cursor_t "set_value" *)
-    (*     (funptr (ptr cursor_t @-> ptr item_t @-> returning void)) *)
+    let set_value =
+      field cursor_t "set_value"
+        (funptr (ptr cursor_t @-> ptr item_t @-> returning void))
+
+    (* int __F(compare)(WT_CURSOR *cursor, WT_CURSOR *other, int *comparep); *)
+    let _ =
+      field cursor_t "compare"
+        (funptr (ptr cursor_t @-> ptr cursor_t @-> ptr int @-> returning int))
+
+    (* int __F(equals)(WT_CURSOR *cursor, WT_CURSOR *other, int *equalp); *)
+    let _ =
+      field cursor_t "equals"
+        (funptr (ptr cursor_t @-> ptr cursor_t @-> ptr int @-> returning int))
+
+    (* int __F(next)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "next" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(prev)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "prev" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(reset)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "reset" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(search)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "search" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(search_near)(WT_CURSOR *cursor, int *exactp); *)
+    let _ =
+      field cursor_t "search_near"
+        (funptr (ptr cursor_t @-> ptr int @-> returning int))
 
     (* int __F(insert)(WT_CURSOR *cursor); *)
-    (* let insert = *)
-    (*   field cursor_t "insert" (funptr (ptr cursor_t @-> returning int)) *)
+    let insert =
+      field cursor_t "insert" (funptr (ptr cursor_t @-> returning int))
 
-    (* let () = seal cursor_t *)
+    let _ =
+      field cursor_t "modify"
+        (funptr (ptr cursor_t @-> ptr void @-> int @-> returning int))
+
+    (* int __F(update)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "update" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(remove)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "remove" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(reserve)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "reserve" (funptr (ptr cursor_t @-> returning int))
+
+    (* uint64_t __F(checkpoint_id)(WT_CURSOR *cursor); *)
+    let _ =
+      field cursor_t "checkpoint_id"
+        (funptr (ptr cursor_t @-> returning uint64_t))
+
+    (* int __F(close)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "close" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(largest_key)(WT_CURSOR *cursor); *)
+    let _ =
+      field cursor_t "largest_key" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(reconfigure)(WT_CURSOR *cursor, const char *config); *)
+    let _ =
+      field cursor_t "reconfigure"
+        (funptr (ptr cursor_t @-> Ctypes.string @-> returning int))
+
+    (* int __F(bound)(WT_CURSOR *cursor, const char *config); *)
+    let _ =
+      field cursor_t "bound"
+        (funptr (ptr cursor_t @-> Ctypes.string @-> returning int))
+
+    (* int __F(cache)(WT_CURSOR *cursor); *)
+    let _ = field cursor_t "cache" (funptr (ptr cursor_t @-> returning int))
+
+    (* int __F(reopen)(WT_CURSOR *cursor, bool check_only); *)
+    let _ =
+      field cursor_t "reopen" (funptr (ptr cursor_t @-> bool @-> returning int))
+
+    let _ = field cursor_t "uri_hash" uint64_t
+
+    type q
+
+    let q : q structure typ = structure "q"
+    let _ = field q "tqe_next" (ptr cursor_t)
+    let _ = field q "tqe_prev" (ptr (ptr cursor_t))
+    let () = seal q
+    let _ = field cursor_t "q" q
+    let _ = field cursor_t "recno" uint64_t
+
+    let _ =
+      let wt_intpack64_maxsize = sizeof int64_t + 1 in
+      field cursor_t "raw_recno_buf" (array wt_intpack64_maxsize uint8_t)
+
+    let _ = field cursor_t "json_private" (ptr void)
+    let _ = field cursor_t "lang_private" (ptr void)
+    let _ = field cursor_t "key" item_t
+    let _ = field cursor_t "value" item_t
+    let _ = field cursor_t "saved_err" int
+    let _ = field cursor_t "internal_uri" Ctypes.string
+    let _ = field cursor_t "flags" uint32_t
+    let () = seal cursor_t
   end
 
   module Session = struct
@@ -106,7 +188,7 @@ module C_Bindings = struct
                             WT_HANDLE_NULLABLE(WT_CURSOR) *to_dup,
                             const char *config,
                             WT_CURSOR **cursorp); *)
-    let _ =
+    let open_cursor =
       field session_t "open_cursor"
         (funptr
            (ptr session_t @-> Ctypes.string @-> ptr void @-> Ctypes.string
@@ -290,8 +372,8 @@ type session_t = C_Bindings.session_t structure
 let connection_t = C_Bindings.connection_t
 let session_t = C_Bindings.session_t
 let event_handler_t = C_Bindings.event_handler_t
-(* let cursor_t = C_Bindings.cursor_t *)
-(* let item_t = C_Bindings.item_t *)
+let cursor_t = C_Bindings.cursor_t
+let item_t = C_Bindings.item_t
 
 type t = ConnectionPtr of connection_t ptr | SessionPtr of session_t ptr
 
@@ -344,7 +426,7 @@ let open_session ~db ~config =
   | SessionPtr _ ->
       failwith "There is already an existing session that is opened"
 
-type table_name = string
+type tbl_name = string
 
 let create_tbl ~db ~tbl_name ~config =
   match db with
@@ -356,27 +438,47 @@ let create_tbl ~db ~tbl_name ~config =
   | ConnectionPtr _ -> failwith "There is no open session"
 
 (* TODO: implement creating a item from data, the size field should be calculated based on data length *)
-(* let make_item data = *)
-(*   make item_t *)
+let make_item data =
+  let item = make item_t in
+  let char_array = CArray.of_string data in
+  let i = sizeof char in
+  setf item C_Bindings.Item.data (CArray.start char_array |> to_voidp);
+  setf item C_Bindings.Item.size
+    (CArray.length char_array * i |> Unsigned.Size_t.of_int);
+  item
 
-(* let insert_record ~db ~tbl_name ~key ~record = *)
-(*   let session_ptr = snd db in *)
-(*   assert (session_ptr != from_voidp session_t null); *)
-(*   (\* Open a cursor if needed *\) *)
-(*   (\* TODO: cache the cursors, or maybe cache them in a batch insert? *\) *)
-(*   let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in *)
-(*   let open_cursor_f = getf !@session_ptr C_Bindings.Session.open_cursor in *)
-(*   let code = open_cursor_f session_ptr tbl_name null "raw" cursor_ptr_ptr in *)
-(*   if code != 0 then failwith "Couldn't open a cursor"; *)
-
-(*   (\* TODO: set key and payload item *\) *)
-(*   let cursor_ptr = !@cursor_ptr_ptr in *)
-(*   let set_key_f = getf !@cursor_ptr C_Bindings.Cursor.set_key in *)
-(*   let set_value_f = getf !@cursor_ptr C_Bindings.Cursor.set_value in *)
-(*   set_key_f cursor_ptr (from_voidp item_t null); *)
-(*   set_value_f cursor_ptr (from_voidp item_t null); *)
-
-(*   (\* perform cursor insert *\) *)
-(*   let insert_f = getf !@cursor_ptr C_Bindings.Cursor.insert in *)
-(*   let code = insert_f cursor_ptr in *)
-(*   if code != 0 then failwith "Couldn't insert data with the cursor" *)
+let insert_record ~db ~tbl_name ~key ~record =
+  match db with
+  | SessionPtr session_ptr ->
+      assert (session_ptr != from_voidp session_t null);
+      (* Open a cursor if needed *)
+      (* TODO: cache the cursors, or maybe cache them in a batch insert? *)
+      let open_cursor () =
+        let cursor_ptr_ptr =
+          allocate (ptr cursor_t) (from_voidp cursor_t null)
+        in
+        let open_cursor_f = getf !@session_ptr C_Bindings.Session.open_cursor in
+        let code =
+          open_cursor_f session_ptr ("table:" ^ tbl_name) null "raw"
+            cursor_ptr_ptr
+        in
+        if code != 0 then failwith "Couldn't open a cursor";
+        assert (not (is_null !@cursor_ptr_ptr));
+        !@cursor_ptr_ptr
+      in
+      (* TODO: set key and payload item *)
+      let set_data cursor_ptr =
+        let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
+        let set_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_value) in
+        set_key_f cursor_ptr (allocate item_t (make_item key));
+        set_value_f cursor_ptr (allocate item_t (make_item record))
+      in
+      let perform_write cursor_ptr =
+        let insert_f = !@(cursor_ptr |-> C_Bindings.Cursor.insert) in
+        let code = insert_f cursor_ptr in
+        if code != 0 then failwith "Couldn't insert data with the cursor"
+      in
+      let cursor_ptr = open_cursor () in
+      set_data cursor_ptr;
+      perform_write cursor_ptr
+  | ConnectionPtr _ -> failwith "There is no open session"
