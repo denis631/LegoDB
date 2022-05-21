@@ -376,6 +376,7 @@ let cursor_t = C_Bindings.cursor_t
 let item_t = C_Bindings.item_t
 
 type t = ConnectionPtr of connection_t ptr | SessionPtr of session_t ptr
+type bin_repr_t = Bytearray.t
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -436,16 +437,15 @@ let create_tbl ~db ~tbl_name ~config =
 module Item = struct
   let of_bytes data =
     let item = make item_t in
-    let array = CArray.of_list char (Bytes.to_seq data |> List.of_seq) in
-    setf item C_Bindings.Item.data (CArray.start array |> to_voidp);
-    setf item C_Bindings.Item.size (Unsigned.Size_t.of_int @@ Bytes.length data);
+    setf item C_Bindings.Item.data (bigarray_start array1 data |> to_voidp);
+    setf item C_Bindings.Item.size
+      (Unsigned.Size_t.of_int @@ Bytearray.length data);
     item
 
   let to_bytes item =
-    let data = getf item C_Bindings.Item.data in
+    let data = getf item C_Bindings.Item.data |> from_voidp char in
     let size = getf item C_Bindings.Item.size |> Unsigned.Size_t.to_int in
-    let array = CArray.from_ptr (from_voidp char data) size in
-    Bytes.init size (CArray.get array)
+    bigarray_of_ptr array1 size Bigarray.char data
 end
 
 (* Open a cursor if needed *)
@@ -494,7 +494,7 @@ let lookup_one ~db ~tbl_name ~key =
       else
         let code = !@(cursor_ptr |-> C_Bindings.Cursor.reset) cursor_ptr in
         if code != 0 then failwith "Couldn't reset the cursor";
-        Some (Bytes.of_string "SOME RESPONSE")
+        None
   | ConnectionPtr _ -> failwith "There is no open session"
 
 let scan ~db ~tbl_name =
@@ -502,7 +502,11 @@ let scan ~db ~tbl_name =
   | SessionPtr session_ptr ->
       assert (session_ptr != from_voidp session_t null);
       let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name in
-      let minKey = Item.of_bytes (Bytes.init 1 (fun _ -> Char.chr 0)) in
+      let byte0 = CArray.make char 1 in
+      CArray.set byte0 0 (Char.chr 0);
+      let minKey =
+        Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
+      in
       let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
       set_key_f cursor_ptr (allocate item_t minKey);
       let next_f = !@(cursor_ptr |-> C_Bindings.Cursor.next) in

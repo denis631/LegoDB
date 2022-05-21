@@ -1,4 +1,5 @@
 type t
+type bin_repr_t = Bytearray.t
 
 val init : path:string -> config:string -> t
 
@@ -20,7 +21,9 @@ val create_tbl : db:t -> tbl_name:tbl_name -> config:string -> unit
 
 (* TODO: records operations *)
 val insert_record :
-  db:t -> tbl_name:tbl_name -> key:bytes -> record:bytes -> unit
+  db:t -> tbl_name:tbl_name -> key:bin_repr_t -> record:bin_repr_t -> unit
 
-val lookup_one : db:t -> tbl_name:tbl_name -> key:bytes -> bytes option
-val scan : db:t -> tbl_name:tbl_name -> unit -> (bytes * bytes) option
+val lookup_one :
+  db:t -> tbl_name:tbl_name -> key:bin_repr_t -> bin_repr_t option
+
+val scan : db:t -> tbl_name:tbl_name -> unit -> (bin_repr_t * bin_repr_t) option

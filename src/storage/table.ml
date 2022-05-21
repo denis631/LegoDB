@@ -16,17 +16,18 @@ module Iu = struct
   let show (_, col, ty) = "col: " ^ col ^ " | type: " ^ Value_type.show ty
 end
 
+let marshal obj = Bytearray.marshal obj []
+let unmarshal bytearray : Tuple.t = Bytearray.unmarshal bytearray 0
+
 module Iter = struct
-  type t = unit -> (bytes * bytes) option
+  type t = unit -> (Wired_tiger.bin_repr_t * Wired_tiger.bin_repr_t) option
 
   let make tbl = Wired_tiger.scan ~db:tbl.db_ref ~tbl_name:tbl.name
 
   let next iter =
     match iter () with
     | Some (_, value) -> (
-        try
-          let tuple : Tuple.t = Marshal.from_bytes value 0 in
-          Some tuple
+        try Some (unmarshal value)
         with _ ->
           failwith "Data corruption happened. Cannot unmarshal the data")
     | None -> None
@@ -38,10 +39,7 @@ let create db_ref name schema = { db_ref; name; schema }
 
 let insert tbl record =
   Wired_tiger.insert_record ~db:tbl.db_ref ~tbl_name:tbl.name
-    ~key:
-      (Marshal.to_bytes
-         (Obj.repr [ List.nth record 2; List.nth record 1; List.nth record 0 ])
-         [])
-    ~record:(Marshal.to_bytes (Obj.repr record) [])
+    ~key:(marshal [ List.nth record 2; List.nth record 1; List.nth record 0 ])
+    ~record:(marshal record)
 
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema

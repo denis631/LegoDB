@@ -3,4 +3,5 @@
  (libraries
    wired_tiger
 
-   batteries))
+   batteries
+   parmap))
