@@ -30,7 +30,7 @@ module C_Bindings = struct
     let _ = field cursor_t "value_format" Ctypes.string
 
     (* int __F(get_key)(WT_CURSOR *cursor, ...); *)
-    let get_key =
+    let _ =
       field cursor_t "get_key"
         (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
 
@@ -367,17 +367,15 @@ module C_Bindings = struct
   end
 end
 
-type connection_t = C_Bindings.connection_t structure
 type session_t = C_Bindings.session_t structure
+type t = session_t ptr
+type bin_repr_t = Bytearray.t
 
 let connection_t = C_Bindings.connection_t
 let session_t = C_Bindings.session_t
 let event_handler_t = C_Bindings.event_handler_t
 let cursor_t = C_Bindings.cursor_t
 let item_t = C_Bindings.item_t
-
-type t = ConnectionPtr of connection_t ptr | SessionPtr of session_t ptr
-type bin_repr_t = Bytearray.t
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -387,11 +385,54 @@ module IsolationLevelConfig = struct
     | ReadCommitted -> "isolation=read_committed"
 end
 
-(* let print_ptr ptr str = *)
-(*   ptr |> to_voidp |> raw_address_of_ptr *)
-(*   |> Printf.printf "Address of %s is: 0x%nx\n" str *)
+module Session = struct
+  let open_cursor session_ptr =
+    getf !@session_ptr C_Bindings.Session.open_cursor session_ptr
 
-let init ~path ~config =
+  let create_tbl session_ptr =
+    getf !@session_ptr C_Bindings.Session.create session_ptr
+end
+
+module Cursor = struct
+  let get_value cursor_ptr =
+    getf !@cursor_ptr C_Bindings.Cursor.get_value cursor_ptr
+
+  let set_key cursor_ptr =
+    getf !@cursor_ptr C_Bindings.Cursor.set_key cursor_ptr
+
+  let set_value cursor_ptr =
+    getf !@cursor_ptr C_Bindings.Cursor.set_value cursor_ptr
+
+  let insert cursor_ptr = getf !@cursor_ptr C_Bindings.Cursor.insert cursor_ptr
+  let next cursor_ptr = getf !@cursor_ptr C_Bindings.Cursor.next cursor_ptr
+  let search cursor_ptr = getf !@cursor_ptr C_Bindings.Cursor.search cursor_ptr
+
+  let search_near cursor_ptr =
+    getf !@cursor_ptr C_Bindings.Cursor.search_near cursor_ptr
+
+  let close cursor_ptr = getf !@cursor_ptr C_Bindings.Cursor.close cursor_ptr
+  let reset cursor_ptr = getf !@cursor_ptr C_Bindings.Cursor.reset cursor_ptr
+end
+
+module Item = struct
+  let get_data item = getf item C_Bindings.Item.data
+  let get_size item = getf item C_Bindings.Item.size
+  let set_data item = setf item C_Bindings.Item.data
+  let set_size item = setf item C_Bindings.Item.size
+
+  let of_bytes data =
+    let item = make item_t in
+    set_data item (bigarray_start array1 data |> to_voidp);
+    set_size item (Unsigned.Size_t.of_int @@ Bytearray.length data);
+    item
+
+  let to_bytes item =
+    let data = get_data item |> from_voidp char in
+    let size = get_size item |> Unsigned.Size_t.to_int in
+    bigarray_of_ptr array1 size Bigarray.char data
+end
+
+let init_and_open_session ~path ~config ~isolation_config =
   let conn_ptr_ptr =
     allocate (ptr connection_t) (from_voidp connection_t null)
   in
@@ -400,204 +441,131 @@ let init ~path ~config =
   in
   if code != 0 then failwith "Couldn't create the database";
   assert (not (is_null !@conn_ptr_ptr));
-  ConnectionPtr !@conn_ptr_ptr
-
-let open_session ~db ~config =
-  match db with
-  | ConnectionPtr conn_ptr ->
-      assert (not (is_null conn_ptr));
-      let session_ptr_ptr =
-        allocate (ptr session_t) (from_voidp session_t null)
-      in
-      let open_session_f =
-        !@(conn_ptr |-> C_Bindings.Connection.open_session)
-      in
-      let code =
-        open_session_f conn_ptr
-          (from_voidp event_handler_t null)
-          (IsolationLevelConfig.show config)
-          session_ptr_ptr
-      in
-      if code != 0 then failwith "Couldn't create the session";
-      assert (not (is_null !@session_ptr_ptr));
-      SessionPtr !@session_ptr_ptr
-  | SessionPtr _ ->
-      failwith "There is already an existing session that is opened"
-
-type tbl_name = string
-
-let create_tbl ~db ~tbl_name ~config =
-  match db with
-  | SessionPtr session_ptr ->
-      assert (session_ptr != from_voidp session_t null);
-      let create_tbl_f = !@(session_ptr |-> C_Bindings.Session.create) in
-      let code = create_tbl_f session_ptr ("table:" ^ tbl_name) config in
-      if code != 0 then failwith "Couldn't create the session"
-  | ConnectionPtr _ -> failwith "There is no open session"
-
-module Item = struct
-  let of_bytes data =
-    let item = make item_t in
-    setf item C_Bindings.Item.data (bigarray_start array1 data |> to_voidp);
-    setf item C_Bindings.Item.size
-      (Unsigned.Size_t.of_int @@ Bytearray.length data);
-    item
-
-  let to_bytes item =
-    let data = getf item C_Bindings.Item.data |> from_voidp char in
-    let size = getf item C_Bindings.Item.size |> Unsigned.Size_t.to_int in
-    bigarray_of_ptr array1 size Bigarray.char data
-end
-
-(* Open a cursor if needed *)
-(* TODO: cache the cursors, or maybe cache them in a batch insert? *)
-let open_tbl_cursor ~session_ptr ~tbl_name ~config =
-  let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
-  let open_cursor_f = getf !@session_ptr C_Bindings.Session.open_cursor in
+  let conn_ptr = !@conn_ptr_ptr in
+  let session_ptr_ptr = allocate (ptr session_t) (from_voidp session_t null) in
+  let open_session_f = !@(conn_ptr |-> C_Bindings.Connection.open_session) in
   let code =
-    open_cursor_f session_ptr ("table:" ^ tbl_name) null config cursor_ptr_ptr
+    open_session_f conn_ptr
+      (from_voidp event_handler_t null)
+      (IsolationLevelConfig.show isolation_config)
+      session_ptr_ptr
   in
-  if code != 0 then failwith "Couldn't open a cursor";
+  if code != 0 then failwith "Couldn't create the session";
+  assert (not (is_null !@session_ptr_ptr));
+  !@session_ptr_ptr
+
+let create_tbl ~session ~tbl_name ~config =
+  assert (session != from_voidp session_t null);
+  if Session.create_tbl session ("table:" ^ tbl_name) config != 0 then
+    failwith "Couldn't create the session"
+
+let open_tbl_cursor ~session_ptr ~tbl_name ~config =
+  assert (session_ptr != from_voidp session_t null);
+  let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
+  if
+    Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
+      cursor_ptr_ptr
+    != 0
+  then failwith "Couldn't open a cursor";
   assert (not (is_null !@cursor_ptr_ptr));
   !@cursor_ptr_ptr
 
-let lookup_one ~db ~tbl_name ~key =
-  match db with
-  | SessionPtr session_ptr ->
-      assert (session_ptr != from_voidp session_t null);
-      let set_key cursor_ptr =
-        let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
-        set_key_f cursor_ptr (allocate item_t (Item.of_bytes key))
-      in
-      let perform_search cursor_ptr =
-        let insert_f = !@(cursor_ptr |-> C_Bindings.Cursor.search) in
-        let code = insert_f cursor_ptr in
-        if code != 0 then None else Some ()
-      in
-      let get_key cursor_ptr =
-        let item_ptr = allocate item_t (make item_t) in
-        let get_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.get_value) in
-        let code = get_value_f cursor_ptr item_ptr in
-        if code != 0 then None
-        else
-          let code = !@(cursor_ptr |-> C_Bindings.Cursor.reset) cursor_ptr in
-          if code != 0 then failwith "Couldn't reset the cursor";
-          Some (Item.to_bytes !@item_ptr)
-      in
-      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name ~config:"raw" in
-      set_key cursor_ptr;
-      Option.bind (perform_search cursor_ptr) (fun () -> get_key cursor_ptr)
-  | ConnectionPtr _ -> failwith "There is no open session"
+let lookup_one ~session ~tbl_name ~key =
+  assert (session != from_voidp session_t null);
+  let get_key cursor_ptr =
+    let item_ptr = allocate item_t (make item_t) in
+    if Cursor.get_value cursor_ptr item_ptr != 0 then None
+    else if Cursor.reset cursor_ptr != 0 then
+      failwith "Couldn't reset the cursor"
+    else Some (Item.to_bytes !@item_ptr)
+  in
+  let cursor_ptr =
+    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+  in
+  Cursor.set_key cursor_ptr (allocate item_t (Item.of_bytes key));
+  if Cursor.search cursor_ptr != 0 then get_key cursor_ptr else None
 
-let insert_record ~db ~tbl_name ~key ~record =
-  match db with
-  | SessionPtr session_ptr ->
-      assert (session_ptr != from_voidp session_t null);
-      let item_key = allocate item_t @@ Item.of_bytes key in
-      let item_value = allocate item_t @@ Item.of_bytes record in
-      let set_data cursor_ptr =
-        let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
-        let set_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_value) in
-        set_key_f cursor_ptr item_key;
-        set_value_f cursor_ptr item_value
-      in
-      let perform_write cursor_ptr =
-        let insert_f = !@(cursor_ptr |-> C_Bindings.Cursor.insert) in
-        let code = insert_f cursor_ptr in
-        if code != 0 then failwith "Couldn't insert data with the cursor"
-      in
-      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name ~config:"raw" in
-      set_data cursor_ptr;
-      perform_write cursor_ptr;
-      ()
-  | ConnectionPtr _ -> failwith "There is no open session"
+let insert_record ~session ~tbl_name ~key ~record =
+  assert (session != from_voidp session_t null);
+  let set_data cursor_ptr =
+    let item_key = allocate item_t @@ Item.of_bytes key in
+    let item_value = allocate item_t @@ Item.of_bytes record in
+    Cursor.set_key cursor_ptr item_key;
+    Cursor.set_value cursor_ptr item_value
+  in
+  let cursor_ptr =
+    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+  in
+  set_data cursor_ptr;
+  if Cursor.insert cursor_ptr != 0 then
+    failwith "Couldn't insert data with the cursor"
 
-let bulk_insert ~db ~tbl_name ~keys_and_records =
-  match db with
-  | SessionPtr session_ptr ->
-      assert (session_ptr != from_voidp session_t null);
-      let set_data cursor_ptr key record =
-        let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
-        let set_value_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_value) in
-        (* TODO: avoid allocating multiple items *)
-        let item_key = allocate item_t @@ Item.of_bytes key in
-        let item_value = allocate item_t @@ Item.of_bytes record in
-        set_key_f cursor_ptr item_key;
-        set_value_f cursor_ptr item_value
-      in
-      let perform_write cursor_ptr =
-        let insert_f = !@(cursor_ptr |-> C_Bindings.Cursor.insert) in
-        let code = insert_f cursor_ptr in
-        if code != 0 then failwith "Couldn't insert data with the cursor"
-      in
-      let close_cursor cursor_ptr =
-        let close_f = !@(cursor_ptr |-> C_Bindings.Cursor.close) in
-        let code = close_f cursor_ptr in
-        if code != 0 then failwith "Couldn't close the cursor"
-      in
-      let cmp (lhs, _) (rhs, _) =
-        let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
-        let rec f = function
-          | idx when lhs_l = idx && rhs_l = idx -> 0
-          | idx when lhs_l > idx && rhs_l = idx -> 1
-          | idx when lhs_l < idx && rhs_l = idx -> -1
-          | idx -> (
-              let x, y =
-                (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
-              in
-              match (Char.code x, Char.code y) with
-              | a, b when a < b -> -1
-              | a, b when a > b -> 1
-              | _ -> f (idx + 1))
-        in
-        f 0
-      in
-      let cursor_ptr =
-        open_tbl_cursor ~session_ptr ~tbl_name ~config:"bulk,raw"
-      in
-      keys_and_records |> List.sort_uniq cmp
-      |> List.iter (fun (key, record) ->
-             set_data cursor_ptr key record;
-             perform_write cursor_ptr);
-      ();
-      close_cursor cursor_ptr
-  | ConnectionPtr _ -> failwith "There is no open session"
-
-let scan ~db ~tbl_name =
-  match db with
-  | SessionPtr session_ptr ->
-      assert (session_ptr != from_voidp session_t null);
-      let cursor_ptr = open_tbl_cursor ~session_ptr ~tbl_name ~config:"raw" in
-      let byte0 = CArray.make char 1 in
-      CArray.set byte0 0 (Char.chr 0);
-      let minKey =
-        Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
-      in
-      let set_key_f = !@(cursor_ptr |-> C_Bindings.Cursor.set_key) in
-      set_key_f cursor_ptr (allocate item_t minKey);
-      let next_f = !@(cursor_ptr |-> C_Bindings.Cursor.next) in
-
-      let search_near_f = !@(cursor_ptr |-> C_Bindings.Cursor.search_near) in
-      let exact_ptr = allocate int 0 in
-      let code =
-        let code = search_near_f cursor_ptr exact_ptr in
-        if !@exact_ptr < 0 then next_f cursor_ptr else code
-      in
-      let cur_code = Stdlib.ref code in
-      let next () =
-        if cur_code.contents != 0 then None
-        else
-          let get_field field =
-            let item_ptr = allocate item_t (make item_t) in
-            let get_key_f = !@(cursor_ptr |-> field) in
-            let _ = get_key_f cursor_ptr item_ptr in
-            !@item_ptr
+let bulk_insert ~session ~tbl_name ~keys_and_records =
+  assert (session != from_voidp session_t null);
+  (* Records can only be bulk inserted in the sorted order *)
+  let cmp (lhs, _) (rhs, _) =
+    let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
+    let rec f = function
+      | idx when lhs_l = idx && rhs_l = idx -> 0
+      | idx when lhs_l > idx && rhs_l = idx -> 1
+      | idx when lhs_l < idx && rhs_l = idx -> -1
+      | idx -> (
+          let x, y =
+            (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
           in
-          let field_to_bytes field = field |> get_field |> Item.to_bytes in
-          let key = field_to_bytes C_Bindings.Cursor.get_key in
-          let value = field_to_bytes C_Bindings.Cursor.get_value in
-          cur_code := next_f cursor_ptr;
-          Some (key, value)
+          match (Char.code x, Char.code y) with
+          | a, b when a < b -> -1
+          | a, b when a > b -> 1
+          | _ -> f (idx + 1))
+    in
+    f 0
+  in
+  let cursor_ptr =
+    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
+  in
+  let perform_write key record =
+    let item_key = Item.of_bytes key in
+    let item_value = Item.of_bytes record in
+    Cursor.set_key cursor_ptr @@ addr item_key;
+    Cursor.set_value cursor_ptr @@ addr item_value;
+    if Cursor.insert cursor_ptr != 0 then
+      failwith "Couldn't insert data with the cursor"
+  in
+  keys_and_records |> List.sort_uniq cmp
+  |> List.iter (fun (key, record) -> perform_write key record);
+  if Cursor.close cursor_ptr != 0 then failwith "Couldn't close the cursor"
+
+let scan ~session ~tbl_name =
+  assert (session != from_voidp session_t null);
+  let cursor_ptr =
+    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+  in
+  (* Set the minKey to 0, such that we always start from the first element in the table *)
+  let minKey =
+    let byte0 = CArray.make char 1 in
+    CArray.set byte0 0 (Char.chr 0);
+    Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
+  in
+  Cursor.set_key cursor_ptr (addr minKey);
+  let cur_code =
+    let code =
+      let exact_ptr = allocate int 0 in
+      let code = Cursor.search_near cursor_ptr exact_ptr in
+      if !@exact_ptr < 0 then Cursor.next cursor_ptr else code
+    in
+    Stdlib.ref code
+  in
+  (* Allocate only one item and reuse it throughout the iterations *)
+  let item_ptr = allocate item_t (make item_t) in
+  let next () =
+    if cur_code.contents != 0 then None
+    else
+      let value =
+        if Cursor.get_value cursor_ptr item_ptr != 0 then
+          failwith "Couldn't get value from cursor";
+        Item.to_bytes !@item_ptr
       in
-      next
-  | ConnectionPtr _ -> failwith "There is no open session"
+      cur_code := Cursor.next cursor_ptr;
+      Some value
+  in
+  next

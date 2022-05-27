@@ -1,7 +1,7 @@
 type name = string
 
 type t = {
-  mutable db_ref : Wired_tiger.t;
+  mutable db_session : Wired_tiger.t;
   name : name;
   mutable schema : Schema.t;
 }
@@ -20,13 +20,13 @@ let marshal obj = Bytearray.marshal obj []
 let unmarshal bytearray : Tuple.t = Bytearray.unmarshal bytearray 0
 
 module Iter = struct
-  type t = unit -> (Wired_tiger.bin_repr_t * Wired_tiger.bin_repr_t) option
+  type t = unit -> Wired_tiger.bin_repr_t option
 
-  let make tbl = Wired_tiger.scan ~db:tbl.db_ref ~tbl_name:tbl.name
+  let make tbl = Wired_tiger.scan ~session:tbl.db_session ~tbl_name:tbl.name
 
   let next iter =
     match iter () with
-    | Some (_, value) -> (
+    | Some value -> (
         try Some (unmarshal value)
         with _ ->
           failwith "Data corruption happened. Cannot unmarshal the data")
@@ -35,11 +35,12 @@ end
 
 let name tbl = tbl.name
 let schema tbl = tbl.schema
-let create db_ref name schema = { db_ref; name; schema }
+let create db_session name schema = { db_session; name; schema }
 
 let insert tbl record =
   let key = [ List.nth record 2; List.nth record 1; List.nth record 0 ] in
-  Wired_tiger.insert_record ~db:tbl.db_ref ~tbl_name:tbl.name ~key:(marshal key)
+  Wired_tiger.insert_record ~session:tbl.db_session ~tbl_name:tbl.name
+    ~key:(marshal key)
     ~record:(marshal [ Value.Integer 0L ])
 
 let bulk_insert tbl records =
@@ -55,7 +56,7 @@ let bulk_insert tbl records =
     loop [] list
   in
   let data = map (fun r -> (marshal @@ to_key r, marshal r)) records in
-  Wired_tiger.bulk_insert ~db:tbl.db_ref ~tbl_name:tbl.name
+  Wired_tiger.bulk_insert ~session:tbl.db_session ~tbl_name:tbl.name
     ~keys_and_records:data
 
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema
