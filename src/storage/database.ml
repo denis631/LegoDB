@@ -19,5 +19,5 @@ let tbls t = t.tables
 let create_tbl db tbl =
   (* TODO: write the tbl metadata into tbl catalog, which stores metadata about tables *)
   Wired_tiger.create_tbl ~db:(db_ref db) ~tbl_name:(Table.name tbl)
-    ~config:"key_format=S,value_format=S";
+    ~config:"key_format=u,value_format=u";
   db.tables <- tbl :: db.tables

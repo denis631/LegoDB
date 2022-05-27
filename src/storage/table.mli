@@ -21,4 +21,5 @@ val name : t -> name
 val schema : t -> Schema.t
 val create : Wired_tiger.t -> name -> Schema.t -> t
 val insert : t -> Tuple.t -> unit
+val bulk_insert : t -> Tuple.t list -> unit
 val ius : t -> Iu.t list

@@ -20,6 +20,12 @@ type tbl_name = string
 val create_tbl : db:t -> tbl_name:tbl_name -> config:string -> unit
 
 (* TODO: records operations *)
+val bulk_insert :
+  db:t ->
+  tbl_name:tbl_name ->
+  keys_and_records:(bin_repr_t * bin_repr_t) list ->
+  unit
+
 val insert_record :
   db:t -> tbl_name:tbl_name -> key:bin_repr_t -> record:bin_repr_t -> unit
 

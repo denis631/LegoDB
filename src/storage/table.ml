@@ -38,8 +38,24 @@ let schema tbl = tbl.schema
 let create db_ref name schema = { db_ref; name; schema }
 
 let insert tbl record =
-  Wired_tiger.insert_record ~db:tbl.db_ref ~tbl_name:tbl.name
-    ~key:(marshal [ List.nth record 2; List.nth record 1; List.nth record 0 ])
-    ~record:(marshal record)
+  let key = [ List.nth record 2; List.nth record 1; List.nth record 0 ] in
+  Wired_tiger.insert_record ~db:tbl.db_ref ~tbl_name:tbl.name ~key:(marshal key)
+    ~record:(marshal [ Value.Integer 0L ])
+
+let bulk_insert tbl records =
+  (* TODO: implement proper to_key function *)
+  let to_key record =
+    [ List.nth record 2; List.nth record 1; List.nth record 0 ]
+  in
+  let map f list =
+    let rec loop acc = function
+      | [] -> List.rev acc
+      | x :: xs -> loop (f x :: acc) xs
+    in
+    loop [] list
+  in
+  let data = map (fun r -> (marshal @@ to_key r, marshal r)) records in
+  Wired_tiger.bulk_insert ~db:tbl.db_ref ~tbl_name:tbl.name
+    ~keys_and_records:data
 
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema
