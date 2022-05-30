@@ -1,5 +1,25 @@
 open Ctypes
 open Foreign
+open BatteriesExceptionless
+
+module Result = struct
+  include Result
+
+  (* maps wiredtiger error code to result with a message *)
+  let of_code code res msg =
+    if code = 0 then Result.Ok res else Result.Error msg
+
+  let get_ok_or_fail = function Ok x -> x | Error msg -> failwith msg
+  let get_ok_or_none = function Ok x -> Some x | Error _ -> None
+
+  module Infix = struct
+    include Result.Infix
+
+    let ( >>| ) t f = Result.map f t
+  end
+end
+
+open Result.Infix
 
 module C_Bindings = struct
   type session_t
@@ -432,27 +452,37 @@ module Item = struct
     bigarray_of_ptr array1 size Bigarray.char data
 end
 
+(* Establishes a connection and creates a new session *)
 let init_and_open_session ~path ~config ~isolation_config =
-  let conn_ptr_ptr =
-    allocate (ptr connection_t) (from_voidp connection_t null)
+  let open_connection () =
+    let conn_ptr_ptr =
+      allocate (ptr connection_t) (from_voidp connection_t null)
+    in
+    Result.of_code
+      (C_Bindings.WiredTiger.wiredtiger_open path null config conn_ptr_ptr)
+      conn_ptr_ptr "Couldn't create the database"
   in
-  let code =
-    C_Bindings.WiredTiger.wiredtiger_open path null config conn_ptr_ptr
+  let open_session conn_ptr_ptr =
+    assert (not (is_null !@conn_ptr_ptr));
+    let conn_ptr = !@conn_ptr_ptr in
+    let session_ptr_ptr =
+      allocate (ptr session_t) (from_voidp session_t null)
+    in
+    let open_session_f = !@(conn_ptr |-> C_Bindings.Connection.open_session) in
+    let code =
+      open_session_f conn_ptr
+        (from_voidp event_handler_t null)
+        (IsolationLevelConfig.show isolation_config)
+        session_ptr_ptr
+    in
+    Result.of_code code session_ptr_ptr "Couldn't create the session"
   in
-  if code != 0 then failwith "Couldn't create the database";
-  assert (not (is_null !@conn_ptr_ptr));
-  let conn_ptr = !@conn_ptr_ptr in
-  let session_ptr_ptr = allocate (ptr session_t) (from_voidp session_t null) in
-  let open_session_f = !@(conn_ptr |-> C_Bindings.Connection.open_session) in
-  let code =
-    open_session_f conn_ptr
-      (from_voidp event_handler_t null)
-      (IsolationLevelConfig.show isolation_config)
-      session_ptr_ptr
+  let get_session_ptr session_ptr_ptr =
+    assert (not (is_null !@session_ptr_ptr));
+    !@session_ptr_ptr
   in
-  if code != 0 then failwith "Couldn't create the session";
-  assert (not (is_null !@session_ptr_ptr));
-  !@session_ptr_ptr
+  open_connection () >>= open_session >>| get_session_ptr
+  |> Result.get_ok_or_fail
 
 let create_tbl ~session ~tbl_name ~config =
   assert (session != from_voidp session_t null);
@@ -460,85 +490,110 @@ let create_tbl ~session ~tbl_name ~config =
     failwith "Couldn't create the session"
 
 let open_tbl_cursor ~session_ptr ~tbl_name ~config =
-  assert (session_ptr != from_voidp session_t null);
-  let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
-  if
-    Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
-      cursor_ptr_ptr
-    != 0
-  then failwith "Couldn't open a cursor";
-  assert (not (is_null !@cursor_ptr_ptr));
-  !@cursor_ptr_ptr
+  let open_cursor () =
+    assert (session_ptr != from_voidp session_t null);
+    let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
+    let code =
+      Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
+        cursor_ptr_ptr
+    in
+    Result.of_code code cursor_ptr_ptr "Couldn't open a cursor"
+  in
+  let get_cursor_ptr cursor_ptr_ptr =
+    assert (not (is_null !@cursor_ptr_ptr));
+    !@cursor_ptr_ptr
+  in
+  open_cursor () >>| get_cursor_ptr
 
 let lookup_one ~session ~tbl_name ~key =
   assert (session != from_voidp session_t null);
-  let get_key cursor_ptr =
-    let item_ptr = allocate item_t (make item_t) in
-    if Cursor.get_value cursor_ptr item_ptr != 0 then None
-    else if Cursor.reset cursor_ptr != 0 then
-      failwith "Couldn't reset the cursor"
-    else Some (Item.to_bytes !@item_ptr)
-  in
-  let cursor_ptr =
+  let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
   in
-  Cursor.set_key cursor_ptr (allocate item_t (Item.of_bytes key));
-  if Cursor.search cursor_ptr != 0 then get_key cursor_ptr else None
+  let search_for_key cursor_ptr =
+    Cursor.set_key cursor_ptr (allocate item_t (Item.of_bytes key));
+    Result.of_code (Cursor.search cursor_ptr) cursor_ptr "Nothing found"
+  in
+  let get_value cursor_ptr =
+    let item_ptr = allocate item_t (make item_t) in
+    let get_value () =
+      Result.of_code
+        (Cursor.get_value cursor_ptr item_ptr)
+        () "Couldn't get the value"
+    in
+    let reset_cursor () =
+      Result.of_code (Cursor.reset cursor_ptr) (Item.to_bytes !@item_ptr)
+        "Couldn't reset the cursor"
+    in
+    get_value () >>= reset_cursor
+  in
+  get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
 
 let insert_record ~session ~tbl_name ~key ~record =
   assert (session != from_voidp session_t null);
-  let set_data cursor_ptr =
-    let item_key = allocate item_t @@ Item.of_bytes key in
-    let item_value = allocate item_t @@ Item.of_bytes record in
-    Cursor.set_key cursor_ptr item_key;
-    Cursor.set_value cursor_ptr item_value
-  in
-  let cursor_ptr =
+  let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
   in
-  set_data cursor_ptr;
-  if Cursor.insert cursor_ptr != 0 then
-    failwith "Couldn't insert data with the cursor"
+  let insert cursor_ptr =
+    let set_data () =
+      let item_key = allocate item_t @@ Item.of_bytes key in
+      let item_value = allocate item_t @@ Item.of_bytes record in
+      Cursor.set_key cursor_ptr item_key;
+      Cursor.set_value cursor_ptr item_value
+    in
+    set_data ();
+    Result.of_code (Cursor.insert cursor_ptr) ()
+      "Couldn't insert data with the cursor"
+  in
+  get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
 
 let bulk_insert ~session ~tbl_name ~keys_and_records =
   assert (session != from_voidp session_t null);
-  (* Records can only be bulk inserted in the sorted order *)
-  let cmp (lhs, _) (rhs, _) =
-    let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
-    let rec f = function
-      | idx when lhs_l = idx && rhs_l = idx -> 0
-      | idx when lhs_l > idx && rhs_l = idx -> 1
-      | idx when lhs_l < idx && rhs_l = idx -> -1
-      | idx -> (
-          let x, y =
-            (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
-          in
-          match (Char.code x, Char.code y) with
-          | a, b when a < b -> -1
-          | a, b when a > b -> 1
-          | _ -> f (idx + 1))
-    in
-    f 0
-  in
-  let cursor_ptr =
+  let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
   in
-  let perform_write key record =
-    let item_key = Item.of_bytes key in
-    let item_value = Item.of_bytes record in
-    Cursor.set_key cursor_ptr @@ addr item_key;
-    Cursor.set_value cursor_ptr @@ addr item_value;
-    if Cursor.insert cursor_ptr != 0 then
-      failwith "Couldn't insert data with the cursor"
+  let perform_writes cursor_ptr =
+    (* Records can only be bulk inserted in the sorted order *)
+    let cmp (lhs, _) (rhs, _) =
+      let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
+      let rec f = function
+        | idx when lhs_l = idx && rhs_l = idx -> 0
+        | idx when lhs_l > idx && rhs_l = idx -> 1
+        | idx when lhs_l < idx && rhs_l = idx -> -1
+        | idx -> (
+            let x, y =
+              (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
+            in
+            match (Char.code x, Char.code y) with
+            | a, b when a < b -> -1
+            | a, b when a > b -> 1
+            | _ -> f (idx + 1))
+      in
+      f 0
+    in
+    let perform_write key record cursor_ptr =
+      let item_key = Item.of_bytes key in
+      let item_value = Item.of_bytes record in
+      Cursor.set_key cursor_ptr @@ addr item_key;
+      Cursor.set_value cursor_ptr @@ addr item_value;
+      Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
+        "Couldn't insert data with the cursor"
+    in
+    keys_and_records |> List.sort_uniq cmp
+    |> List.fold_left
+         (fun acc (key, record) -> Result.bind acc (perform_write key record))
+         (Result.Ok cursor_ptr)
   in
-  keys_and_records |> List.sort_uniq cmp
-  |> List.iter (fun (key, record) -> perform_write key record);
-  if Cursor.close cursor_ptr != 0 then failwith "Couldn't close the cursor"
+  let close_cursor cursor_ptr =
+    Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
+  in
+  get_cursor_ptr () >>= perform_writes >>= close_cursor |> Result.get_ok_or_fail
 
 let scan ~session ~tbl_name =
   assert (session != from_voidp session_t null);
   let cursor_ptr =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+    |> Result.get_ok_or_fail
   in
   (* Set the minKey to 0, such that we always start from the first element in the table *)
   let minKey =

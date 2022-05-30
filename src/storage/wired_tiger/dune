@@ -1,4 +1,4 @@
 (library
   (name      wired_tiger)
-  (libraries ctypes.foreign parmap)
+  (libraries ctypes.foreign parmap batteries)
   (flags     :standard -cclib /Users/denis.grebennicov/Documents/wiredtiger/build/libwiredtiger.dylib))
