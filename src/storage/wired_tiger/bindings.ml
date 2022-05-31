@@ -9,10 +9,6 @@ type item_t
 
 let session_t : session_t structure typ = structure "__wt_session"
 let connection_t : connection_t structure typ = structure "__wt_connection"
-
-let event_handler_t : event_handler_t structure typ =
-  structure "__wt_event_handler"
-
 let cursor_t : cursor_t structure typ = structure "__wt_cursor"
 let item_t : item_t structure typ = structure "__wt_item"
 
@@ -262,7 +258,7 @@ module Connection = struct
   let open_session =
     field connection_t "open_session"
       (funptr
-         (ptr connection_t @-> ptr event_handler_t @-> Ctypes.string
+         (ptr connection_t @-> ptr void @-> Ctypes.string
          @-> ptr (ptr session_t)
          @-> returning int))
 

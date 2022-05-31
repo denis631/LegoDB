@@ -10,25 +10,12 @@ module Result = struct
 
   let get_ok_or_fail = function Ok x -> x | Error msg -> failwith msg
   let get_ok_or_none = function Ok x -> Some x | Error _ -> None
-
-  module Infix = struct
-    include Result.Infix
-
-    let ( >>| ) t f = Result.map f t
-  end
 end
 
 open Result.Infix
 
-type session_t = Bindings.session_t structure
-type t = session_t ptr
+type t = Session.t ptr
 type bin_repr_t = Bytearray.t
-
-let connection_t = Bindings.connection_t
-let session_t = Bindings.session_t
-let event_handler_t = Bindings.event_handler_t
-let cursor_t = Bindings.cursor_t
-let item_t = Bindings.item_t
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -41,9 +28,7 @@ end
 (* Establishes a connection and creates a new session *)
 let init_and_open_session ~path ~config ~isolation_config =
   let open_connection () =
-    let conn_ptr_ptr =
-      allocate (ptr connection_t) (from_voidp connection_t null)
-    in
+    let conn_ptr_ptr = Connection.alloc_ptr () in
     Result.of_code
       (Bindings.WiredTiger.wiredtiger_open path null config conn_ptr_ptr)
       conn_ptr_ptr "Couldn't create the database"
@@ -51,57 +36,41 @@ let init_and_open_session ~path ~config ~isolation_config =
   let open_session conn_ptr_ptr =
     assert (not (is_null !@conn_ptr_ptr));
     let conn_ptr = !@conn_ptr_ptr in
-    let session_ptr_ptr =
-      allocate (ptr session_t) (from_voidp session_t null)
-    in
-    let open_session_f = !@(conn_ptr |-> Bindings.Connection.open_session) in
+    let session_ptr_ptr = Session.alloc_ptr () in
     let code =
-      open_session_f conn_ptr
-        (from_voidp event_handler_t null)
+      Connection.open_session conn_ptr null
         (IsolationLevelConfig.show isolation_config)
         session_ptr_ptr
     in
-    Result.of_code code session_ptr_ptr "Couldn't create the session"
+    Result.of_code code !@session_ptr_ptr "Couldn't create the session"
   in
-  let get_session_ptr session_ptr_ptr =
-    assert (not (is_null !@session_ptr_ptr));
-    !@session_ptr_ptr
-  in
-  open_connection () >>= open_session >>| get_session_ptr
-  |> Result.get_ok_or_fail
+  open_connection () >>= open_session |> Result.get_ok_or_fail
 
 let create_tbl ~session ~tbl_name ~config =
-  assert (session != from_voidp session_t null);
+  assert (session != from_voidp Session.t null);
   if Session.create_tbl session ("table:" ^ tbl_name) config != 0 then
     failwith "Couldn't create the session"
 
 let open_tbl_cursor ~session_ptr ~tbl_name ~config =
-  let open_cursor () =
-    assert (session_ptr != from_voidp session_t null);
-    let cursor_ptr_ptr = allocate (ptr cursor_t) (from_voidp cursor_t null) in
-    let code =
-      Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
-        cursor_ptr_ptr
-    in
-    Result.of_code code cursor_ptr_ptr "Couldn't open a cursor"
+  assert (session_ptr != from_voidp Session.t null);
+  let cursor_ptr_ptr = Cursor.alloc_ptr () in
+  let code =
+    Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
+      cursor_ptr_ptr
   in
-  let get_cursor_ptr cursor_ptr_ptr =
-    assert (not (is_null !@cursor_ptr_ptr));
-    !@cursor_ptr_ptr
-  in
-  open_cursor () >>| get_cursor_ptr
+  Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
 
 let lookup_one ~session ~tbl_name ~key =
-  assert (session != from_voidp session_t null);
+  assert (session != from_voidp Session.t null);
   let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
   in
   let search_for_key cursor_ptr =
-    Cursor.set_key cursor_ptr (allocate item_t (Item.of_bytes key));
+    Cursor.set_key cursor_ptr (Item.alloc (Item.of_bytes key));
     Result.of_code (Cursor.search cursor_ptr) cursor_ptr "Nothing found"
   in
   let get_value cursor_ptr =
-    let item_ptr = allocate item_t (make item_t) in
+    let item_ptr = Item.alloc (make Item.t) in
     let get_value () =
       Result.of_code
         (Cursor.get_value cursor_ptr item_ptr)
@@ -116,14 +85,14 @@ let lookup_one ~session ~tbl_name ~key =
   get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
 
 let insert_record ~session ~tbl_name ~key ~record =
-  assert (session != from_voidp session_t null);
+  assert (session != from_voidp Session.t null);
   let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
   in
   let insert cursor_ptr =
     let set_data () =
-      let item_key = allocate item_t @@ Item.of_bytes key in
-      let item_value = allocate item_t @@ Item.of_bytes record in
+      let item_key = Item.alloc @@ Item.of_bytes key in
+      let item_value = Item.alloc @@ Item.of_bytes record in
       Cursor.set_key cursor_ptr item_key;
       Cursor.set_value cursor_ptr item_value
     in
@@ -134,7 +103,7 @@ let insert_record ~session ~tbl_name ~key ~record =
   get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
 
 let bulk_insert ~session ~tbl_name ~keys_and_records =
-  assert (session != from_voidp session_t null);
+  assert (session != from_voidp Session.t null);
   let get_cursor_ptr () =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
   in
@@ -176,15 +145,14 @@ let bulk_insert ~session ~tbl_name ~keys_and_records =
   get_cursor_ptr () >>= perform_writes >>= close_cursor |> Result.get_ok_or_fail
 
 let scan ~session ~tbl_name =
-  assert (session != from_voidp session_t null);
+  assert (session != from_voidp Session.t null);
   let cursor_ptr =
     open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
     |> Result.get_ok_or_fail
   in
   (* Set the minKey to 0, such that we always start from the first element in the table *)
   let minKey =
-    let byte0 = CArray.make char 1 in
-    CArray.set byte0 0 (Char.chr 0);
+    let byte0 = CArray.make char ~initial:(Char.chr 0) 1 in
     Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
   in
   Cursor.set_key cursor_ptr (addr minKey);
@@ -197,7 +165,7 @@ let scan ~session ~tbl_name =
     Stdlib.ref code
   in
   (* Allocate only one item and reuse it throughout the iterations *)
-  let item_ptr = allocate item_t (make item_t) in
+  let item_ptr = Item.alloc (make Item.t) in
   let next () =
     if cur_code.contents != 0 then None
     else
