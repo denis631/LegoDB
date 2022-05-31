@@ -1,4 +1,4 @@
-type t = { mutable tables : Table.t list; db_session : Wired_tiger.t }
+type t = { mutable tables : Table.t list; db_session : Wired_tiger.session }
 
 let create () : t =
   let session =

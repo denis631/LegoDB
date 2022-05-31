@@ -14,8 +14,7 @@ end
 
 open Result.Infix
 
-type t = Session.t ptr
-type bin_repr_t = Bytearray.t
+type session = Session.t ptr
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -60,121 +59,126 @@ let open_tbl_cursor ~session_ptr ~tbl_name ~config =
   in
   Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
 
-let lookup_one ~session ~tbl_name ~key =
-  assert (session != from_voidp Session.t null);
-  let get_cursor_ptr () =
-    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
-  in
-  let search_for_key cursor_ptr =
-    Cursor.set_key cursor_ptr (Item.alloc (Item.of_bytes key));
-    Result.of_code (Cursor.search cursor_ptr) cursor_ptr "Nothing found"
-  in
-  let get_value cursor_ptr =
-    let item_ptr = Item.alloc (make Item.t) in
-    let get_value () =
-      Result.of_code
-        (Cursor.get_value cursor_ptr item_ptr)
-        () "Couldn't get the value"
-    in
-    let reset_cursor () =
-      Result.of_code (Cursor.reset cursor_ptr) (Item.to_bytes !@item_ptr)
-        "Couldn't reset the cursor"
-    in
-    get_value () >>= reset_cursor
-  in
-  get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
+module Record = struct
+  type t = Bytearray.t
 
-let insert_record ~session ~tbl_name ~key ~record =
-  assert (session != from_voidp Session.t null);
-  let get_cursor_ptr () =
-    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
-  in
-  let insert cursor_ptr =
-    let set_data () =
-      let item_key = Item.alloc @@ Item.of_bytes key in
-      let item_value = Item.alloc @@ Item.of_bytes record in
-      Cursor.set_key cursor_ptr item_key;
-      Cursor.set_value cursor_ptr item_value
+  let lookup_one ~session ~tbl_name ~key =
+    assert (session != from_voidp Session.t null);
+    let get_cursor_ptr () =
+      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
     in
-    set_data ();
-    Result.of_code (Cursor.insert cursor_ptr) ()
-      "Couldn't insert data with the cursor"
-  in
-  get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
-
-let bulk_insert ~session ~tbl_name ~keys_and_records =
-  assert (session != from_voidp Session.t null);
-  let get_cursor_ptr () =
-    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
-  in
-  let perform_writes cursor_ptr =
-    (* Records can only be bulk inserted in the sorted order *)
-    let cmp (lhs, _) (rhs, _) =
-      let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
-      let rec f = function
-        | idx when lhs_l = idx && rhs_l = idx -> 0
-        | idx when lhs_l > idx && rhs_l = idx -> 1
-        | idx when lhs_l < idx && rhs_l = idx -> -1
-        | idx -> (
-            let x, y =
-              (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
-            in
-            match (Char.code x, Char.code y) with
-            | a, b when a < b -> -1
-            | a, b when a > b -> 1
-            | _ -> f (idx + 1))
+    let search_for_key cursor_ptr =
+      Cursor.set_key cursor_ptr (Item.alloc (Item.of_bytes key));
+      Result.of_code (Cursor.search cursor_ptr) cursor_ptr "Nothing found"
+    in
+    let get_value cursor_ptr =
+      let item_ptr = Item.alloc (Ctypes.make Item.t) in
+      let get_value () =
+        Result.of_code
+          (Cursor.get_value cursor_ptr item_ptr)
+          () "Couldn't get the value"
       in
-      f 0
+      let reset_cursor () =
+        Result.of_code (Cursor.reset cursor_ptr) (Item.to_bytes !@item_ptr)
+          "Couldn't reset the cursor"
+      in
+      get_value () >>= reset_cursor
     in
-    let perform_write key record cursor_ptr =
-      let item_key = Item.of_bytes key in
-      let item_value = Item.of_bytes record in
-      Cursor.set_key cursor_ptr @@ addr item_key;
-      Cursor.set_value cursor_ptr @@ addr item_value;
-      Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
+    get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
+
+  let insert_one ~session ~tbl_name ~key ~record =
+    assert (session != from_voidp Session.t null);
+    let get_cursor_ptr () =
+      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+    in
+    let insert cursor_ptr =
+      let set_data () =
+        let item_key = Item.alloc @@ Item.of_bytes key in
+        let item_value = Item.alloc @@ Item.of_bytes record in
+        Cursor.set_key cursor_ptr item_key;
+        Cursor.set_value cursor_ptr item_value
+      in
+      set_data ();
+      Result.of_code (Cursor.insert cursor_ptr) ()
         "Couldn't insert data with the cursor"
     in
-    keys_and_records |> List.sort_uniq cmp
-    |> List.fold_left
-         (fun acc (key, record) -> Result.bind acc (perform_write key record))
-         (Result.Ok cursor_ptr)
-  in
-  let close_cursor cursor_ptr =
-    Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
-  in
-  get_cursor_ptr () >>= perform_writes >>= close_cursor |> Result.get_ok_or_fail
+    get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
 
-let scan ~session ~tbl_name =
-  assert (session != from_voidp Session.t null);
-  let cursor_ptr =
-    open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
-    |> Result.get_ok_or_fail
-  in
-  (* Set the minKey to 0, such that we always start from the first element in the table *)
-  let minKey =
-    let byte0 = CArray.make char ~initial:(Char.chr 0) 1 in
-    Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
-  in
-  Cursor.set_key cursor_ptr (addr minKey);
-  let cur_code =
-    let code =
-      let exact_ptr = allocate int 0 in
-      let code = Cursor.search_near cursor_ptr exact_ptr in
-      if !@exact_ptr < 0 then Cursor.next cursor_ptr else code
+  let bulk_insert ~session ~tbl_name ~keys_and_records =
+    assert (session != from_voidp Session.t null);
+    let get_cursor_ptr () =
+      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
     in
-    Stdlib.ref code
-  in
-  (* Allocate only one item and reuse it throughout the iterations *)
-  let item_ptr = Item.alloc (make Item.t) in
-  let next () =
-    if cur_code.contents != 0 then None
-    else
-      let value =
-        if Cursor.get_value cursor_ptr item_ptr != 0 then
-          failwith "Couldn't get value from cursor";
-        Item.to_bytes !@item_ptr
+    let perform_writes cursor_ptr =
+      (* Records can only be bulk inserted in the sorted order *)
+      let cmp (lhs, _) (rhs, _) =
+        let lhs_l, rhs_l = (Bytearray.length lhs, Bytearray.length rhs) in
+        let rec f = function
+          | idx when lhs_l = idx && rhs_l = idx -> 0
+          | idx when lhs_l > idx && rhs_l = idx -> 1
+          | idx when lhs_l < idx && rhs_l = idx -> -1
+          | idx -> (
+              let x, y =
+                (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
+              in
+              match (Char.code x, Char.code y) with
+              | a, b when a < b -> -1
+              | a, b when a > b -> 1
+              | _ -> f (idx + 1))
+        in
+        f 0
       in
-      cur_code := Cursor.next cursor_ptr;
-      Some value
-  in
-  next
+      let perform_write key record cursor_ptr =
+        let item_key = Item.of_bytes key in
+        let item_value = Item.of_bytes record in
+        Cursor.set_key cursor_ptr @@ addr item_key;
+        Cursor.set_value cursor_ptr @@ addr item_value;
+        Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
+          "Couldn't insert data with the cursor"
+      in
+      keys_and_records |> List.sort_uniq cmp
+      |> List.fold_left
+           (fun acc (key, record) -> Result.bind acc (perform_write key record))
+           (Result.Ok cursor_ptr)
+    in
+    let close_cursor cursor_ptr =
+      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
+    in
+    get_cursor_ptr () >>= perform_writes >>= close_cursor
+    |> Result.get_ok_or_fail
+
+  let scan ~session ~tbl_name =
+    assert (session != from_voidp Session.t null);
+    let cursor_ptr =
+      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+      |> Result.get_ok_or_fail
+    in
+    (* Set the minKey to 0, such that we always start from the first element in the table *)
+    let minKey =
+      let byte0 = CArray.make char ~initial:(Char.chr 0) 1 in
+      Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
+    in
+    Cursor.set_key cursor_ptr (addr minKey);
+    let cur_code =
+      let code =
+        let exact_ptr = allocate int 0 in
+        let code = Cursor.search_near cursor_ptr exact_ptr in
+        if !@exact_ptr < 0 then Cursor.next cursor_ptr else code
+      in
+      Stdlib.ref code
+    in
+    (* Allocate only one item and reuse it throughout the iterations *)
+    let item_ptr = Item.alloc (Ctypes.make Item.t) in
+    let next () =
+      if cur_code.contents != 0 then None
+      else
+        let value =
+          if Cursor.get_value cursor_ptr item_ptr != 0 then
+            failwith "Couldn't get value from cursor";
+          Item.to_bytes !@item_ptr
+        in
+        cur_code := Cursor.next cursor_ptr;
+        Some value
+    in
+    next
+end
