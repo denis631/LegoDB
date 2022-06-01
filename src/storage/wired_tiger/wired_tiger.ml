@@ -9,7 +9,12 @@ module Result = struct
     if code = 0 then Result.Ok res else Result.Error msg
 
   let get_ok_or_fail = function Ok x -> x | Error msg -> failwith msg
-  let get_ok_or_none = function Ok x -> Some x | Error _ -> None
+end
+
+module Option = struct
+  include Option
+
+  let of_result = function Ok x -> Some x | Error _ -> None
 end
 
 open Result.Infix
@@ -76,7 +81,7 @@ module Record = struct
       in
       get_value () >>= reset_cursor
     in
-    get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
+    get_cursor_ptr () >>= search_for_key >>= get_value |> Option.of_result
 
   let insert_one ~session_ref ~tbl_name ~key ~record =
     assert (session_ref != from_voidp Session.t null);
