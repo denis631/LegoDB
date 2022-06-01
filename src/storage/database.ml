@@ -10,7 +10,6 @@ let create () : t =
       ~config:
         "create, direct_io=[data, log, checkpoint], log=(enabled=false), \
          session_max=2000, cache_size=4096M"
-      ~isolation_config:Wired_tiger.IsolationLevelConfig.Snapshot
   in
   { tables = []; db_session_ref = session_ref }
 

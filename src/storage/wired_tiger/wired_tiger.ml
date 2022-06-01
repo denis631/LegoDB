@@ -16,16 +16,8 @@ open Result.Infix
 
 type session_ref = Session.t ptr
 
-module IsolationLevelConfig = struct
-  type t = Snapshot | ReadCommitted
-
-  let show = function
-    | Snapshot -> "isolation=snapshot"
-    | ReadCommitted -> "isolation=read_committed"
-end
-
 (* Establishes a connection and creates a new session_ref *)
-let init_and_open_session ~path ~config ~isolation_config =
+let init_and_open_session ~path ~config =
   let open_connection () =
     let conn_ptr_ptr = Connection.alloc_ptr () in
     Result.of_code
@@ -37,9 +29,7 @@ let init_and_open_session ~path ~config ~isolation_config =
     let conn_ptr = !@conn_ptr_ptr in
     let session_ptr_ptr = Session.alloc_ptr () in
     let code =
-      Connection.open_session conn_ptr null
-        (IsolationLevelConfig.show isolation_config)
-        session_ptr_ptr
+      Connection.open_session conn_ptr null "isolation=snapshot" session_ptr_ptr
     in
     Result.of_code code !@session_ptr_ptr "Couldn't create the session"
   in

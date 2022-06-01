@@ -1,14 +1,6 @@
 type session_ref
 
-module IsolationLevelConfig : sig
-  type t = Snapshot | ReadCommitted
-end
-
-val init_and_open_session :
-  path:string ->
-  config:string ->
-  isolation_config:IsolationLevelConfig.t ->
-  session_ref
+val init_and_open_session : path:string -> config:string -> session_ref
 
 (* (\* TODO: wrap into a submodule? *\) *)
 (* val begin_txn : t -> unit *)
