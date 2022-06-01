@@ -14,7 +14,7 @@ end
 
 open Result.Infix
 
-type session = Session.t ptr
+type session_ref = Session.t ptr
 
 module IsolationLevelConfig = struct
   type t = Snapshot | ReadCommitted
@@ -24,7 +24,7 @@ module IsolationLevelConfig = struct
     | ReadCommitted -> "isolation=read_committed"
 end
 
-(* Establishes a connection and creates a new session *)
+(* Establishes a connection and creates a new session_ref *)
 let init_and_open_session ~path ~config ~isolation_config =
   let open_connection () =
     let conn_ptr_ptr = Connection.alloc_ptr () in
@@ -45,27 +45,29 @@ let init_and_open_session ~path ~config ~isolation_config =
   in
   open_connection () >>= open_session |> Result.get_ok_or_fail
 
-let create_tbl ~session ~tbl_name ~config =
-  assert (session != from_voidp Session.t null);
-  if Session.create_tbl session ("table:" ^ tbl_name) config != 0 then
-    failwith "Couldn't create the session"
+module Table = struct
+  let create ~session_ref ~tbl_name ~config =
+    assert (session_ref != from_voidp Session.t null);
+    if Session.create_tbl session_ref ("table:" ^ tbl_name) config != 0 then
+      failwith "Couldn't create the session"
 
-let open_tbl_cursor ~session_ptr ~tbl_name ~config =
-  assert (session_ptr != from_voidp Session.t null);
-  let cursor_ptr_ptr = Cursor.alloc_ptr () in
-  let code =
-    Session.open_cursor session_ptr ("table:" ^ tbl_name) null config
-      cursor_ptr_ptr
-  in
-  Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
+  let open_cursor ~session_ref ~tbl_name ~config =
+    assert (session_ref != from_voidp Session.t null);
+    let cursor_ptr_ptr = Cursor.alloc_ptr () in
+    let code =
+      Session.open_cursor session_ref ("table:" ^ tbl_name) null config
+        cursor_ptr_ptr
+    in
+    Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
+end
 
 module Record = struct
   type t = Bytearray.t
 
-  let lookup_one ~session ~tbl_name ~key =
-    assert (session != from_voidp Session.t null);
+  let lookup_one ~session_ref ~tbl_name ~key =
+    assert (session_ref != from_voidp Session.t null);
     let get_cursor_ptr () =
-      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+      Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
     in
     let search_for_key cursor_ptr =
       Cursor.set_key cursor_ptr (Item.alloc (Item.of_bytes key));
@@ -86,10 +88,10 @@ module Record = struct
     in
     get_cursor_ptr () >>= search_for_key >>= get_value |> Result.get_ok_or_none
 
-  let insert_one ~session ~tbl_name ~key ~record =
-    assert (session != from_voidp Session.t null);
+  let insert_one ~session_ref ~tbl_name ~key ~record =
+    assert (session_ref != from_voidp Session.t null);
     let get_cursor_ptr () =
-      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+      Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
     in
     let insert cursor_ptr =
       let set_data () =
@@ -104,10 +106,10 @@ module Record = struct
     in
     get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
 
-  let bulk_insert ~session ~tbl_name ~keys_and_records =
-    assert (session != from_voidp Session.t null);
+  let bulk_insert ~session_ref ~tbl_name ~keys_and_records =
+    assert (session_ref != from_voidp Session.t null);
     let get_cursor_ptr () =
-      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"bulk,raw"
+      Table.open_cursor ~session_ref ~tbl_name ~config:"bulk,raw"
     in
     let perform_writes cursor_ptr =
       (* Records can only be bulk inserted in the sorted order *)
@@ -147,10 +149,10 @@ module Record = struct
     get_cursor_ptr () >>= perform_writes >>= close_cursor
     |> Result.get_ok_or_fail
 
-  let scan ~session ~tbl_name =
-    assert (session != from_voidp Session.t null);
+  let scan ~session_ref ~tbl_name =
+    assert (session_ref != from_voidp Session.t null);
     let cursor_ptr =
-      open_tbl_cursor ~session_ptr:session ~tbl_name ~config:"raw"
+      Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
       |> Result.get_ok_or_fail
     in
     (* Set the minKey to 0, such that we always start from the first element in the table *)

@@ -1,7 +1,7 @@
 type name = string
 
 type t = {
-  mutable db_session : Wired_tiger.session;
+  mutable db_session_ref : Wired_tiger.session_ref;
   name : name;
   mutable schema : Schema.t;
 }
@@ -23,7 +23,7 @@ module Iter = struct
   type t = unit -> Wired_tiger.Record.t option
 
   let make tbl =
-    Wired_tiger.Record.scan ~session:tbl.db_session ~tbl_name:tbl.name
+    Wired_tiger.Record.scan ~session_ref:tbl.db_session_ref ~tbl_name:tbl.name
 
   let next iter =
     match iter () with
@@ -36,12 +36,12 @@ end
 
 let name tbl = tbl.name
 let schema tbl = tbl.schema
-let create db_session name schema = { db_session; name; schema }
+let create db_session_ref name schema = { db_session_ref; name; schema }
 
 let insert tbl record =
   let key = [ List.nth record 2; List.nth record 1; List.nth record 0 ] in
-  Wired_tiger.Record.insert_one ~session:tbl.db_session ~tbl_name:tbl.name
-    ~key:(marshal key)
+  Wired_tiger.Record.insert_one ~session_ref:tbl.db_session_ref
+    ~tbl_name:tbl.name ~key:(marshal key)
     ~record:(marshal [ Value.Integer 0L ])
 
 let bulk_insert tbl records =
@@ -57,7 +57,7 @@ let bulk_insert tbl records =
     loop [] list
   in
   let data = map (fun r -> (marshal @@ to_key r, marshal r)) records in
-  Wired_tiger.Record.bulk_insert ~session:tbl.db_session ~tbl_name:tbl.name
-    ~keys_and_records:data
+  Wired_tiger.Record.bulk_insert ~session_ref:tbl.db_session_ref
+    ~tbl_name:tbl.name ~keys_and_records:data
 
 let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema
