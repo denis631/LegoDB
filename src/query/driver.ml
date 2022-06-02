@@ -61,29 +61,25 @@ let make_operator_tree db = function
       in
       Logical.Operators.Projection (attrs, select_ops)
 
-
 let run db ast f =
   let tree =
-    ast
-    |> make_operator_tree db
-    |> tap @@ Logical.Operators.show %> print_endline
-    |> Optimizer.optimize
+    ast |> make_operator_tree db
+    |> tap @@ (Logical.Operators.show %> print_endline)
+    |> Optimizer.optimize db
     |> Physical.Operators.prepare []
   in
   let ctx = () in
   let rec iter () =
     match Physical.Operators.next ctx tree with
     | Some (t, _) ->
-        f t ;
+        f t;
         iter ()
-    | None ->
-        ()
+    | None -> ()
   in
   iter ()
-
 
 let benchmark f =
   let t = Sys.time () in
   let result = f () in
-  Printf.printf "Execution time: %fs\n" (Sys.time () -. t) ;
+  Printf.printf "Execution time: %fs\n" (Sys.time () -. t);
   result

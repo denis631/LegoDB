@@ -13,13 +13,14 @@ end
 module Iter : sig
   type t
 
-  val make : parent -> t
+  val make : Wired_tiger.session_ref -> parent -> t
   val next : t -> Tuple.t option
+  val to_list : t -> Tuple.t list
 end
 
 val name : t -> name
 val schema : t -> Schema.t
-val create : Wired_tiger.session_ref -> name -> Schema.t -> t
-val insert : t -> Tuple.t -> unit
-val bulk_insert : t -> Tuple.t list -> unit
+val create : name -> Schema.t -> t
+val insert : Wired_tiger.session_ref -> t -> Tuple.t -> unit
+val bulk_insert : Wired_tiger.session_ref -> t -> Tuple.t list -> unit
 val ius : t -> Iu.t list
