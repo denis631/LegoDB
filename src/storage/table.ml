@@ -120,17 +120,9 @@ module Make (R : Record) = struct
 end
 
 module type RegularTbl = Tbl with type record = Tuple.t
-module type CatalogTbl = Tbl with type record = string * Schema.t
 
 module RegularTbl = Make (struct
   type t = Tuple.t
-
-  let marshal obj = Bytearray.marshal obj []
-  let unmarshal bytearray : t = Bytearray.unmarshal bytearray 0
-end)
-
-module CatalogTbl = Make (struct
-  type t = string * Schema.t
 
   let marshal obj = Bytearray.marshal obj []
   let unmarshal bytearray : t = Bytearray.unmarshal bytearray 0

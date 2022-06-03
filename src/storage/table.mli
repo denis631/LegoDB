@@ -49,7 +49,5 @@ end
 module Make : functor (R : Record) -> Tbl
 
 module type RegularTbl = Tbl with type record = Tuple.t
-module type CatalogTbl = Tbl with type record = string * Schema.t
 
 module RegularTbl : RegularTbl
-module CatalogTbl : CatalogTbl
