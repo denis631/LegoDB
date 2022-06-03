@@ -6,9 +6,17 @@ module type Record = sig
 end
 
 module type Tbl = sig
-  (* TODO: introduce Meta module *)
-  type meta
   type record
+
+  module Meta : sig
+    type t
+
+    (* TODO: fix this disaster (to_key) and what about auto incrementing ids, so no specific record field *)
+    val make : string -> Schema.t -> (record -> record) -> t
+    val name : t -> string
+    val schema : t -> Schema.t
+    val to_key : t -> record -> record
+  end
 
   module Iu : sig
     type t
@@ -21,26 +29,32 @@ module type Tbl = sig
   module Iter : sig
     type t
 
-    val make : Wired_tiger.session_ref -> meta -> t
+    val make : Wired_tiger.session_ref -> Meta.t -> t
     val next : t -> record option
     val to_list : t -> record list
   end
 
-  val name : meta -> string
-  val schema : meta -> Schema.t
-  val create_meta : string -> Schema.t -> to_key:(record -> record) -> meta
+  module Crud : sig
+    val exists : Wired_tiger.session_ref -> Meta.t -> bool
+    val create : Wired_tiger.session_ref -> Meta.t -> unit
+    val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
+    val bulk_insert : Wired_tiger.session_ref -> Meta.t -> record list -> unit
+  end
 
-  (* TODO: introduce a CRUD module *)
-  val exists : Wired_tiger.session_ref -> meta -> bool
-  val create : Wired_tiger.session_ref -> meta -> unit
-  val insert : Wired_tiger.session_ref -> meta -> record -> unit
-  val bulk_insert : Wired_tiger.session_ref -> meta -> record list -> unit
-  val ius : meta -> Iu.t list
+  val ius : Meta.t -> Iu.t list
 end
 
 module Make (R : Record) = struct
-  type meta = { name : string; mutable schema : Schema.t; to_key : R.t -> R.t }
   type record = R.t
+
+  module Meta = struct
+    type t = { name : string; schema : Schema.t; to_key : record -> record }
+
+    let make name schema to_key = { name; schema; to_key }
+    let name meta = meta.name
+    let schema meta = meta.schema
+    let to_key meta = meta.to_key
+  end
 
   module Iu = struct
     type t = string * Schema.column_name * Value_type.t
@@ -53,8 +67,8 @@ module Make (R : Record) = struct
   module Iter = struct
     type t = unit -> Wired_tiger.Record.t option
 
-    let make session_ref tbl =
-      Wired_tiger.Record.scan ~session_ref ~tbl_name:tbl.name
+    let make session_ref meta =
+      Wired_tiger.Record.scan ~session_ref ~tbl_name:(Meta.name meta)
 
     let next iter =
       match iter () with
@@ -71,37 +85,38 @@ module Make (R : Record) = struct
       f []
   end
 
-  let name tbl = tbl.name
-  let schema tbl = tbl.schema
-  let create_meta name schema ~to_key = { name; schema; to_key }
+  module Crud = struct
+    let exists session_ref meta =
+      Wired_tiger.Table.exists ~session_ref ~tbl_name:(Meta.name meta)
 
-  let exists session_ref meta =
-    Wired_tiger.Table.exists ~session_ref ~tbl_name:meta.name
+    let create session_ref meta =
+      Wired_tiger.Table.create ~session_ref ~tbl_name:(Meta.name meta)
+        ~config:"key_format:u,value_format:u"
 
-  let create session_ref meta =
-    Wired_tiger.Table.create ~session_ref ~tbl_name:meta.name
-      ~config:"key_format:u,value_format:u"
+    let insert session_ref meta record =
+      Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
+        ~key:(R.marshal @@ Meta.to_key meta record)
+        ~record:(R.marshal record)
 
-  let insert session_ref tbl record =
-    Wired_tiger.Record.insert_one ~session_ref ~tbl_name:tbl.name
-      ~key:(R.marshal @@ tbl.to_key record)
-      ~record:(R.marshal record)
-
-  let bulk_insert session_ref tbl records =
-    let map f list =
-      let rec loop acc = function
-        | [] -> List.rev acc
-        | x :: xs -> loop (f x :: acc) xs
+    let bulk_insert session_ref meta records =
+      let map f list =
+        let rec loop acc = function
+          | [] -> List.rev acc
+          | x :: xs -> loop (f x :: acc) xs
+        in
+        loop [] list
       in
-      loop [] list
-    in
-    let data =
-      map (fun r -> (R.marshal @@ tbl.to_key r, R.marshal r)) records
-    in
-    Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:tbl.name
-      ~keys_and_records:data
+      let data =
+        map (fun r -> (R.marshal @@ Meta.to_key meta r, R.marshal r)) records
+      in
+      Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
+        ~keys_and_records:data
+  end
 
-  let ius tbl = List.map (fun (col, ty) -> Iu.make tbl.name col ty) tbl.schema
+  let ius meta =
+    List.map
+      (fun (col, ty) -> Iu.make (Meta.name meta) col ty)
+      (Meta.schema meta)
 end
 
 module type RegularTbl = Tbl with type record = Tuple.t

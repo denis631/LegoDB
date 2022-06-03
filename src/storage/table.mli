@@ -7,9 +7,17 @@ end
 
 (* TODO: maybe just call this sig T *)
 module type Tbl = sig
-  (* TODO: introduce Meta module *)
-  type meta
   type record
+
+  module Meta : sig
+    type t
+
+    (* TODO: fix this disaster (to_key) and what about auto incrementing ids, so no specific record field *)
+    val make : string -> Schema.t -> (record -> record) -> t
+    val name : t -> string
+    val schema : t -> Schema.t
+    val to_key : t -> record -> record
+  end
 
   module Iu : sig
     type t
@@ -22,22 +30,19 @@ module type Tbl = sig
   module Iter : sig
     type t
 
-    val make : Wired_tiger.session_ref -> meta -> t
+    val make : Wired_tiger.session_ref -> Meta.t -> t
     val next : t -> record option
     val to_list : t -> record list
   end
 
-  val name : meta -> string
-  val schema : meta -> Schema.t
-  val create_meta : string -> Schema.t -> to_key:(record -> record) -> meta
-  (* TODO: fix this disaster and what about auto incrementing ids, so no specific record field *)
+  module Crud : sig
+    val exists : Wired_tiger.session_ref -> Meta.t -> bool
+    val create : Wired_tiger.session_ref -> Meta.t -> unit
+    val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
+    val bulk_insert : Wired_tiger.session_ref -> Meta.t -> record list -> unit
+  end
 
-  (* TODO: introduce a CRUD module *)
-  val exists : Wired_tiger.session_ref -> meta -> bool
-  val create : Wired_tiger.session_ref -> meta -> unit
-  val insert : Wired_tiger.session_ref -> meta -> record -> unit
-  val bulk_insert : Wired_tiger.session_ref -> meta -> record list -> unit
-  val ius : meta -> Iu.t list
+  val ius : Meta.t -> Iu.t list
 end
 
 (* TODO: remove Record module and have only Marshaller *)
