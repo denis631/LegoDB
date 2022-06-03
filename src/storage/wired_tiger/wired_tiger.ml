@@ -40,6 +40,26 @@ let init_and_open_session ~path ~config =
   in
   open_connection () >>= open_session |> Result.get_ok_or_fail
 
+module Txn = struct
+  let begin_txn session_ref =
+    Result.of_code
+      (Session.begin_txn session_ref "")
+      () "Couldn't begin the transaction"
+    |> Result.get_ok_or_fail
+
+  let commit_txn session_ref =
+    Result.of_code
+      (Session.commit_txn session_ref "")
+      () "Couldn't commit the transaction"
+    |> Result.get_ok_or_fail
+
+  let rollback_txn session_ref =
+    Result.of_code
+      (Session.rollback_txn session_ref "")
+      () "Couldn't rollback the transaction"
+    |> Result.get_ok_or_fail
+end
+
 module Table = struct
   let open_cursor ~session_ref ~tbl_name ~config =
     assert (session_ref != from_voidp Session.t null);

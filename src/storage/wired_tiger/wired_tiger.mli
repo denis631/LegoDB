@@ -2,10 +2,12 @@ type session_ref
 
 val init_and_open_session : path:string -> config:string -> session_ref
 
-(* (\* TODO: wrap into a submodule? *\) *)
-(* val begin_txn : t -> unit *)
-(* val commit_txn : t -> unit *)
-(* val abort_txn : t -> unit *)
+(* Managing transactions *)
+module Txn : sig
+  val begin_txn : session_ref -> unit
+  val commit_txn : session_ref -> unit
+  val rollback_txn : session_ref -> unit
+end
 
 (* Operations on tables *)
 module Table : sig

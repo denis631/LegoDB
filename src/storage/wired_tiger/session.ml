@@ -10,3 +10,12 @@ let open_cursor session_ptr =
 
 let create_tbl session_ptr =
   getf !@session_ptr Bindings.Session.create session_ptr
+
+let begin_txn session_ptr =
+  getf !@session_ptr Bindings.Session.begin_transaction session_ptr
+
+let commit_txn session_ptr =
+  getf !@session_ptr Bindings.Session.commit_transaction session_ptr
+
+let rollback_txn session_ptr =
+  getf !@session_ptr Bindings.Session.rollback_transaction session_ptr

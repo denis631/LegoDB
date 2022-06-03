@@ -204,6 +204,89 @@ module Session = struct
       (funptr
          (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
 
+  (* int __F(compact)(WT_SESSION *session, const char *name, const char *config); *)
+  let _ =
+    field session_t "compact"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+  (* int __F(drop)(WT_SESSION *session, const char *name, const char *config); *)
+  let _ =
+    field session_t "drop"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+  (* int __F(join)(WT_SESSION *session,
+                   WT_CURSOR *join_cursor,
+                   WT_CURSOR *ref_cursor,
+                   const char *config); *)
+  let _ =
+    field session_t "join"
+      (funptr
+         (ptr session_t @-> ptr cursor_t @-> ptr cursor_t @-> Ctypes.string
+        @-> returning int))
+
+  (* int __F(log_flush)(WT_SESSION *session, const char *config); *)
+  let _ =
+    field session_t "log_flush"
+      (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+  (* int __F(log_printf)(WT_SESSION *session, const char *format, ...); *)
+  let _ =
+    field session_t "log_printf"
+      (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+  (* int __F(rename)(WT_SESSION *session, const char *uri, const char *newuri, const char *config); *)
+  let _ =
+    field session_t "rename"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> Ctypes.string
+        @-> returning int))
+
+  (* int __F(reset)(WT_SESSION *session); *)
+  let _ = field session_t "reset" (funptr (ptr session_t @-> returning int))
+
+  (* int __F(salvage)(WT_SESSION *session, const char *name, const char *config); *)
+  let _ =
+    field session_t "salvage"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+  (* int __F(truncate)(WT_SESSION *session,
+                       const char *name,
+                       WT_CURSOR *start,
+                       WT_CURSOR *stop,
+                       const char *config); *)
+  let _ =
+    field session_t "truncate"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> ptr cursor_t @-> ptr cursor_t
+        @-> Ctypes.string @-> returning int))
+
+  (* int __F(upgrade)(WT_SESSION *session,const char *name, const char *config); *)
+  let _ =
+    field session_t "upgrade"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+  (* int __F(verify)(WT_SESSION *session, const char *name, const char *config); *)
+  let _ =
+    field session_t "verify"
+      (funptr
+         (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
+
+  let begin_transaction =
+    field session_t "begin_transaction"
+      (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+  let commit_transaction =
+    field session_t "commit_transaction"
+      (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
+  let rollback_transaction =
+    field session_t "rollback_transaction"
+      (funptr (ptr session_t @-> Ctypes.string @-> returning int))
+
   let () = seal session_t
 end
 
