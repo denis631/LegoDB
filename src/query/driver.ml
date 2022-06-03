@@ -5,16 +5,13 @@ open BatteriesExceptionless
 
 let make_expr db pred =
   let make_attr_iu = function
-    | AttrName x ->
-        Binder.find_column_attr db x
-    | _ ->
-        failwith "TODO: support this use-case"
+    | AttrName x -> Binder.find_column_attr db x
+    | _ -> failwith "TODO: support this use-case"
   in
   let make_const = function
     | Int i ->
         Match.Expr.Leaf (Match.Expr.Const (Value.Integer (Int64.of_int i)))
-    | Str s ->
-        Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s))
+    | Str s -> Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s))
   in
   match pred with
   | EqConst (attr, const) ->
@@ -26,10 +23,8 @@ let make_expr db pred =
       let rhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr2)) in
       Match.Expr.Eq (lhs, rhs)
 
-
 let make_match_tree db pred_lst =
   Match.Expr.And (List.map (make_expr db) pred_lst)
-
 
 let make_operator_tree db = function
   | Select (attr_lst, tbl_lst, pred_lst) ->
@@ -43,17 +38,16 @@ let make_operator_tree db = function
           tbl_scans
       in
       let attrs =
-        if List.exists (( = ) Star) attr_lst
-        then failwith "TODO: implement projection of all attributes"
+        if List.exists (( = ) Star) attr_lst then
+          failwith "TODO: implement projection of all attributes"
         else
           attr_lst
           |> List.filter_map (fun attr ->
-                 match attr with AttrName s -> Some s | Star -> None )
+                 match attr with AttrName s -> Some s | Star -> None)
           |> List.map (Binder.find_column_attr db)
       in
       let select_ops =
-        pred_lst
-        |> Option.default []
+        pred_lst |> Option.default []
         |> List.map (make_expr db)
         |> List.fold_left
              (fun acc pred -> Logical.Operators.Selection (pred, acc))

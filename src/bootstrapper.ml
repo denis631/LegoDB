@@ -14,10 +14,12 @@ let load_tpcc () =
     loop [] list
   in
   let parse_tbl db tbl_name tbl_schema tuples_raw =
-    let tbl = Table.create (Database.db_session_ref db) tbl_name tbl_schema in
+    let tbl =
+      Table.RegularTbl.create_meta tbl_name tbl_schema ~to_key:(fun x -> x)
+    in
     Database.create_tbl db tbl;
     let tuples_parsed = map (Tuple.parse tbl_schema) tuples_raw in
-    Table.bulk_insert tbl tuples_parsed
+    Table.RegularTbl.bulk_insert (Database.db_session_ref db) tbl tuples_parsed
   in
 
   let table_infos =

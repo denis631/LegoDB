@@ -41,11 +41,6 @@ let init_and_open_session ~path ~config =
   open_connection () >>= open_session |> Result.get_ok_or_fail
 
 module Table = struct
-  let create ~session_ref ~tbl_name ~config =
-    assert (session_ref != from_voidp Session.t null);
-    if Session.create_tbl session_ref ("table:" ^ tbl_name) config != 0 then
-      failwith "Couldn't create the session"
-
   let open_cursor ~session_ref ~tbl_name ~config =
     assert (session_ref != from_voidp Session.t null);
     let cursor_ptr_ptr = Cursor.alloc_ptr () in
@@ -54,6 +49,18 @@ module Table = struct
         cursor_ptr_ptr
     in
     Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
+
+  let exists ~session_ref ~tbl_name =
+    let open_cursor () = open_cursor ~session_ref ~tbl_name ~config:"raw" in
+    let close_cursor cursor_ptr =
+      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
+    in
+    open_cursor () >>= close_cursor |> Result.is_ok
+
+  let create ~session_ref ~tbl_name ~config =
+    assert (session_ref != from_voidp Session.t null);
+    if Session.create_tbl session_ref ("table:" ^ tbl_name) config != 0 then
+      failwith "Couldn't create the session"
 end
 
 module Record = struct
@@ -96,10 +103,13 @@ module Record = struct
         Cursor.set_value cursor_ptr item_value
       in
       set_data ();
-      Result.of_code (Cursor.insert cursor_ptr) ()
+      Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
         "Couldn't insert data with the cursor"
     in
-    get_cursor_ptr () >>= insert |> Result.get_ok_or_fail
+    let close_cursor cursor_ptr =
+      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
+    in
+    get_cursor_ptr () >>= insert >>= close_cursor |> Result.get_ok_or_fail
 
   let bulk_insert ~session_ref ~tbl_name ~keys_and_records =
     assert (session_ref != from_voidp Session.t null);

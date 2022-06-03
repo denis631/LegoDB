@@ -9,6 +9,8 @@ val init_and_open_session : path:string -> config:string -> session_ref
 
 (* Operations on tables *)
 module Table : sig
+  val exists : session_ref:session_ref -> tbl_name:string -> bool
+
   val create :
     session_ref:session_ref -> tbl_name:string -> config:string -> unit
 end
