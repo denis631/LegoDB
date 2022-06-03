@@ -3,7 +3,7 @@ open Storage
 open Common
 
 type projection =
-  { attributes : Table.RegularTbl.Iu.t list
+  { attributes : Table.T.Iu.t list
   ; child_op : op
   }
 

@@ -36,8 +36,8 @@ let rec predicate_pushdown iu selection =
 let rec optimize db = function
   | Logical.Operators.TableScan tbl ->
       Physical.Table_scan.make
-        ~iter:(Table.RegularTbl.Iter.make (Database.db_session_ref db) tbl)
-        ~ius:(Table.RegularTbl.ius tbl)
+        ~iter:(Table.T.Iter.make (Database.db_session_ref db) tbl)
+        ~ius:(Table.T.ius tbl)
   | Logical.Operators.Selection
       ( Expr.Match.Expr.Eq
           ( Expr.Match.Expr.Leaf (Expr.Match.Expr.TableAttr lhs),

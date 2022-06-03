@@ -1,13 +1,17 @@
-module type Record = sig
+(* TODO: reuse this module type in other places *)
+module type Marshaller = sig
   type t
+  type v
 
-  val marshal : t -> Wired_tiger.Record.t
-  val unmarshal : Wired_tiger.Record.t -> t
+  val marshal : t -> v
+  val unmarshal : v -> t
 end
+
+module type WiredTigerMarshaller = Marshaller with type v = Wired_tiger.Record.t
 
 (* TODO: maybe just call this sig T *)
 module type Tbl = sig
-  type record
+  type record = Tuple.t
 
   module Meta : sig
     type t
@@ -45,9 +49,5 @@ module type Tbl = sig
   val ius : Meta.t -> Iu.t list
 end
 
-(* TODO: remove Record module and have only Marshaller *)
-module Make : functor (R : Record) -> Tbl
-
-module type RegularTbl = Tbl with type record = Tuple.t
-
-module RegularTbl : RegularTbl
+module Make : functor (M : WiredTigerMarshaller with type t = Tuple.t) -> Tbl
+module T : Tbl

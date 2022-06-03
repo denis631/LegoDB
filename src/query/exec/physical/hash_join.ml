@@ -9,7 +9,7 @@ module TupleHashtbl = Hashtbl.Make (struct
   let hash = Storage.Tuple.hash %> Int64.to_int
 end)
 
-type hash_tbl = (Storage.Tuple.t * Table.RegularTbl.Iu.t list) TupleHashtbl.t
+type hash_tbl = (Storage.Tuple.t * Table.T.Iu.t list) TupleHashtbl.t
 type state = BuildHashtbl | ProbeRight
 
 type hash_join = {
@@ -17,8 +17,8 @@ type hash_join = {
   right_op : op;
   hash_tbl : hash_tbl;
   (* which of the attributes in the tuple will be used as key for lhs and rhs *)
-  hash_key_ius : Table.RegularTbl.Iu.t list * Table.RegularTbl.Iu.t list;
-  mutable buffered_tuples : (Storage.Tuple.t * Table.RegularTbl.Iu.t list) list;
+  hash_key_ius : Table.T.Iu.t list * Table.T.Iu.t list;
+  mutable buffered_tuples : (Storage.Tuple.t * Table.T.Iu.t list) list;
   mutable state : state;
 }
 
@@ -41,7 +41,7 @@ let has_iu root_has_iu iu join =
 let prepare _ join = join
 
 let to_hastbl_key ius (tuple, schema) =
-  let required_for_key iu = List.exists (Table.RegularTbl.Iu.eq iu) ius in
+  let required_for_key iu = List.exists (Table.T.Iu.eq iu) ius in
   let zip = List.map2 @@ curry identity in
   zip tuple schema |> List.filter (snd %> required_for_key) |> List.map fst
 

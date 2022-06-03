@@ -1,12 +1,18 @@
-module type Record = sig
-  type t
+open BatPervasives
+module List = BatList
 
-  val marshal : t -> Wired_tiger.Record.t
-  val unmarshal : Wired_tiger.Record.t -> t
+module type Marshaller = sig
+  type t
+  type v
+
+  val marshal : t -> v
+  val unmarshal : v -> t
 end
 
+module type WiredTigerMarshaller = Marshaller with type v = Wired_tiger.Record.t
+
 module type Tbl = sig
-  type record
+  type record = Tuple.t
 
   module Meta : sig
     type t
@@ -44,8 +50,8 @@ module type Tbl = sig
   val ius : Meta.t -> Iu.t list
 end
 
-module Make (R : Record) = struct
-  type record = R.t
+module Make (M : WiredTigerMarshaller with type t = Tuple.t) = struct
+  type record = M.t
 
   module Meta = struct
     type t = { name : string; schema : Schema.t; to_key : record -> record }
@@ -73,7 +79,7 @@ module Make (R : Record) = struct
     let next iter =
       match iter () with
       | Some record -> (
-          try Some (R.unmarshal record)
+          try Some (M.unmarshal record)
           with _ ->
             failwith "Data corruption happened. Cannot unmarshal the data")
       | None -> None
@@ -94,36 +100,26 @@ module Make (R : Record) = struct
         ~config:"key_format:u,value_format:u"
 
     let insert session_ref meta record =
+      let marshal_key = Meta.to_key meta %> M.marshal in
       Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
-        ~key:(R.marshal @@ Meta.to_key meta record)
-        ~record:(R.marshal record)
+        ~key:(marshal_key record) ~record:(M.marshal record)
 
     let bulk_insert session_ref meta records =
-      let map f list =
-        let rec loop acc = function
-          | [] -> List.rev acc
-          | x :: xs -> loop (f x :: acc) xs
-        in
-        loop [] list
-      in
-      let data =
-        map (fun r -> (R.marshal @@ Meta.to_key meta r, R.marshal r)) records
-      in
+      let marshal_key = Meta.to_key meta %> M.marshal in
+      let data = List.map (fun r -> (marshal_key r, M.marshal r)) records in
       Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
         ~keys_and_records:data
   end
 
   let ius meta =
-    List.map
-      (fun (col, ty) -> Iu.make (Meta.name meta) col ty)
-      (Meta.schema meta)
+    let f = Iu.make (Meta.name meta) in
+    List.map (uncurry f) (Meta.schema meta)
 end
 
-module type RegularTbl = Tbl with type record = Tuple.t
-
-module RegularTbl = Make (struct
+module T = Make (struct
   type t = Tuple.t
+  type v = Wired_tiger.Record.t
 
   let marshal obj = Bytearray.marshal obj []
-  let unmarshal bytearray : t = Bytearray.unmarshal bytearray 0
+  let unmarshal bytearray = Bytearray.unmarshal bytearray 0
 end)

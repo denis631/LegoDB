@@ -3,7 +3,7 @@ open BatteriesExceptionless
 
 module Expr = struct
   type bool = And of bool list | Or of bool list | Eq of t * t
-  and leaf = Const of Value.t | TableAttr of Table.RegularTbl.Iu.t
+  and leaf = Const of Value.t | TableAttr of Table.T.Iu.t
   and t = BoolExpr of bool | Leaf of leaf
 
   let rec ius expr =
@@ -32,7 +32,7 @@ module Expr = struct
       | Const x -> x
       | TableAttr iu ->
           List.map2 (fun x y -> (x, y)) tuple schema
-          |> List.find (Table.RegularTbl.Iu.eq iu % snd)
+          |> List.find (Table.T.Iu.eq iu % snd)
           |> Option.get |> fst
     in
     match expr with
@@ -47,7 +47,7 @@ module Expr = struct
     in
     let show_leaf = function
       | Const x -> Value.show x
-      | TableAttr iu -> Table.RegularTbl.Iu.show iu
+      | TableAttr iu -> Table.T.Iu.show iu
     in
     match expr with
     | Leaf leaf -> show_leaf leaf
