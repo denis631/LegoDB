@@ -38,7 +38,9 @@ module type Tbl = sig
     val create : Wired_tiger.session_ref -> Meta.t -> unit
     val read_all : Wired_tiger.session_ref -> Meta.t -> record Sequence.t
     val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
-    val bulk_insert : Wired_tiger.session_ref -> Meta.t -> record list -> unit
+
+    val bulk_insert :
+      Wired_tiger.session_ref -> Meta.t -> record Sequence.t -> unit
   end
 
   val ius : Meta.t -> Iu.t list
@@ -90,12 +92,12 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
 
     let bulk_insert session_ref meta records =
       let data =
-        List.map
+        Sequence.map
           ~f:(fun r -> (M.marshal @@ Meta.to_key meta r, M.marshal r))
           records
       in
       Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
-        ~keys_and_records:data
+        ~keys_and_records:(Sequence.to_list data)
   end
 
   let ius meta =

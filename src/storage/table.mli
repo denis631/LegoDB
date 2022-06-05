@@ -36,7 +36,9 @@ module type Tbl = sig
     val create : Wired_tiger.session_ref -> Meta.t -> unit
     val read_all : Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t
     val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
-    val bulk_insert : Wired_tiger.session_ref -> Meta.t -> record list -> unit
+
+    val bulk_insert :
+      Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t -> unit
   end
 
   val ius : Meta.t -> Iu.t list
