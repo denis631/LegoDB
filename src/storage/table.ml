@@ -1,14 +1,9 @@
+open Utils
+module TupleMarshaller = Tuple.Marshaller
+
 type tuple = Tuple.t
 
 open Core
-
-module type Marshaller = sig
-  type t
-  type v
-
-  val marshal : t -> v
-  val unmarshal : v -> t
-end
 
 module type WiredTigerMarshaller = Marshaller with type v = Wired_tiger.Record.t
 
@@ -17,12 +12,13 @@ module type Tbl = sig
 
   module Meta : sig
     type t
+    type meta = t
 
-    (* TODO: fix this disaster (to_key) and what about auto incrementing ids, so no specific record field *)
-    val make : string -> Schema.t -> (record -> record) -> t
+    val make : string -> Schema.t -> t
     val name : t -> string
     val schema : t -> Schema.t
-    val to_key : t -> record -> record
+
+    module Marshaller : Marshaller with type t = meta and type v = record
   end
 
   module Iu : sig
@@ -50,12 +46,30 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   type record = M.t
 
   module Meta = struct
-    type t = { name : string; schema : Schema.t; to_key : record -> record }
+    type t = { name : string; schema : Schema.t }
+    type meta = t
 
-    let make name schema to_key = { name; schema; to_key }
+    let make name schema = { name; schema }
     let name meta = meta.name
     let schema meta = meta.schema
-    let to_key meta = meta.to_key
+
+    module Marshaller : Marshaller with type t = meta and type v = record =
+    struct
+      type t = meta
+      type v = record
+
+      let marshal meta : record =
+        [
+          Value.VarChar (name meta);
+          Value.VarChar (schema meta |> Schema.Marshaller.marshal);
+        ]
+
+      let unmarshal record : meta =
+        make
+          (List.hd_exn record |> Value.show)
+          (Schema.Marshaller.unmarshal
+          @@ (List.tl_exn record |> List.hd_exn |> Value.show))
+    end
   end
 
   module Iu = struct
@@ -67,6 +81,18 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   end
 
   module Crud = struct
+    let to_key meta record =
+      let columns = List.map ~f:fst @@ fst @@ Meta.schema meta in
+      let primary_key_columns = snd @@ Meta.schema meta in
+      let find_col_idx key_column =
+        fst
+        @@ List.findi_exn ~f:(fun _ elt -> String.( = ) elt key_column) columns
+      in
+      let extract_field_from_record_at_idx = List.nth_exn record in
+      List.map
+        ~f:(Fn.compose extract_field_from_record_at_idx find_col_idx)
+        primary_key_columns
+
     let exists session_ref meta =
       Wired_tiger.Table.exists ~session_ref ~tbl_name:(Meta.name meta)
 
@@ -87,13 +113,13 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
 
     let insert session_ref meta record =
       Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
-        ~key:(M.marshal @@ Meta.to_key meta record)
+        ~key:(M.marshal @@ to_key meta record)
         ~record:(M.marshal record)
 
     let bulk_insert session_ref meta records =
       let data =
         Sequence.map
-          ~f:(fun r -> (M.marshal @@ Meta.to_key meta r, M.marshal r))
+          ~f:(fun r -> (M.marshal @@ to_key meta r, M.marshal r))
           records
       in
       Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
@@ -103,13 +129,7 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   let ius meta =
     List.map
       ~f:(fun (col, ty) -> Iu.make (Meta.name meta) col ty)
-      (Meta.schema meta)
+      (fst @@ Meta.schema meta)
 end
 
-module T = Make (struct
-  type t = tuple
-  type v = Wired_tiger.Record.t
-
-  let marshal obj = Bytearray.marshal obj []
-  let unmarshal bytearray = Bytearray.unmarshal bytearray 0
-end)
+module T = Make (TupleMarshaller)

@@ -1,26 +1,20 @@
-(* TODO: reuse this module type in other places *)
-module type Marshaller = sig
-  type t
-  type v
-
-  val marshal : t -> v
-  val unmarshal : v -> t
-end
+open Utils
 
 module type WiredTigerMarshaller = Marshaller with type v = Wired_tiger.Record.t
 
-(* TODO: maybe just call this sig T *)
 module type Tbl = sig
   type record = Tuple.t
 
   module Meta : sig
     type t
+    type meta = t
 
-    (* TODO: fix this disaster (to_key) and what about auto incrementing ids, so no specific record field *)
-    val make : string -> Schema.t -> (record -> record) -> t
+    val make : string -> Schema.t -> t
     val name : t -> string
     val schema : t -> Schema.t
-    val to_key : t -> record -> record
+
+    (* Need this marshaller in order to write table metadata into catalog table  *)
+    module Marshaller : Marshaller with type t = meta and type v = record
   end
 
   module Iu : sig

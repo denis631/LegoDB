@@ -18,7 +18,7 @@ let find_column_attr db attr_name =
         Some (Table.T.Iu.make (Table.T.Meta.name tbl) attr_name ty)
       else None
     in
-    match List.filter_map filter_col @@ Table.T.Meta.schema tbl with
+    match List.filter_map filter_col @@ fst @@ Table.T.Meta.schema tbl with
     | [ x ] -> Some x
     | _ -> None
   in
