@@ -1,3 +1,5 @@
+open Core
+
 type t = { meta : Table.T.Meta.t; mutable tbls : Table.T.Meta.t list }
 
 let name = "__catalog"
@@ -22,14 +24,14 @@ let create session_ref =
     else
       let tuple_to_table_meta tuple =
         Table.T.Meta.make
-          (List.hd tuple |> Value.show)
-          (Schema.of_string @@ (List.tl tuple |> List.hd |> Value.show))
+          (List.hd_exn tuple |> Value.show)
+          (Schema.of_string @@ (List.tl_exn tuple |> List.hd_exn |> Value.show))
           (fun x -> x)
       in
       meta
-      |> Table.T.Iter.make session_ref
-      |> Table.T.Iter.to_list
-      |> List.map tuple_to_table_meta
+      |> Table.T.Crud.read_all session_ref
+      |> Sequence.map ~f:tuple_to_table_meta
+      |> Sequence.to_list
   in
   { meta; tbls }
 

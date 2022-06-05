@@ -31,17 +31,10 @@ module type Tbl = sig
     val show : t -> string
   end
 
-  module Iter : sig
-    type t
-
-    val make : Wired_tiger.session_ref -> Meta.t -> t
-    val next : t -> record option
-    val to_list : t -> record list
-  end
-
   module Crud : sig
     val exists : Wired_tiger.session_ref -> Meta.t -> bool
     val create : Wired_tiger.session_ref -> Meta.t -> unit
+    val read_all : Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t
     val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
     val bulk_insert : Wired_tiger.session_ref -> Meta.t -> record list -> unit
   end

@@ -1,5 +1,5 @@
 open Ctypes
-open BatteriesExceptionless
+open Core
 
 module Result = struct
   include Result
@@ -7,8 +7,6 @@ module Result = struct
   (* maps wiredtiger error code to result with a message *)
   let of_code code res msg =
     if code = 0 then Result.Ok res else Result.Error msg
-
-  let get_ok_or_fail = function Ok x -> x | Error msg -> failwith msg
 end
 
 module Option = struct
@@ -17,12 +15,11 @@ module Option = struct
   let of_result = function Ok x -> Some x | Error _ -> None
 end
 
-open Result.Infix
-
 type session_ref = Session.t ptr
 
 (* Establishes a connection and creates a new session_ref *)
 let init_and_open_session ~path ~config =
+  let open Result in
   let open_connection () =
     let conn_ptr_ptr = Connection.alloc_ptr () in
     Result.of_code
@@ -38,31 +35,31 @@ let init_and_open_session ~path ~config =
     in
     Result.of_code code !@session_ptr_ptr "Couldn't create the session"
   in
-  open_connection () >>= open_session |> Result.get_ok_or_fail
+  open_connection () >>= open_session |> ok_or_failwith
 
 module Txn = struct
   let begin_txn session_ref =
     Result.of_code
       (Session.begin_txn session_ref "")
       () "Couldn't begin the transaction"
-    |> Result.get_ok_or_fail
+    |> Result.ok_or_failwith
 
   let commit_txn session_ref =
     Result.of_code
       (Session.commit_txn session_ref "")
       () "Couldn't commit the transaction"
-    |> Result.get_ok_or_fail
+    |> Result.ok_or_failwith
 
   let rollback_txn session_ref =
     Result.of_code
       (Session.rollback_txn session_ref "")
       () "Couldn't rollback the transaction"
-    |> Result.get_ok_or_fail
+    |> Result.ok_or_failwith
 end
 
 module Table = struct
   let open_cursor ~session_ref ~tbl_name ~config =
-    assert (session_ref != from_voidp Session.t null);
+    assert (not @@ is_null session_ref);
     let cursor_ptr_ptr = Cursor.alloc_ptr () in
     let code =
       Session.open_cursor session_ref ("table:" ^ tbl_name) null config
@@ -71,6 +68,7 @@ module Table = struct
     Result.of_code code !@cursor_ptr_ptr "Couldn't open a cursor"
 
   let exists ~session_ref ~tbl_name =
+    let open Result in
     let open_cursor () = open_cursor ~session_ref ~tbl_name ~config:"raw" in
     let close_cursor cursor_ptr =
       Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
@@ -78,16 +76,19 @@ module Table = struct
     open_cursor () >>= close_cursor |> Result.is_ok
 
   let create ~session_ref ~tbl_name ~config =
-    assert (session_ref != from_voidp Session.t null);
-    if Session.create_tbl session_ref ("table:" ^ tbl_name) config != 0 then
-      failwith "Couldn't create the session"
+    assert (not @@ is_null session_ref);
+    if
+      not @@ phys_equal 0
+      @@ Session.create_tbl session_ref ("table:" ^ tbl_name) config
+    then failwith "Couldn't create the session"
 end
 
 module Record = struct
   type t = Bytearray.t
 
   let lookup_one ~session_ref ~tbl_name ~key =
-    assert (session_ref != from_voidp Session.t null);
+    let open Result in
+    assert (not @@ is_null session_ref);
     let get_cursor_ptr () =
       Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
     in
@@ -111,7 +112,8 @@ module Record = struct
     get_cursor_ptr () >>= search_for_key >>= get_value |> Option.of_result
 
   let insert_one ~session_ref ~tbl_name ~key ~record =
-    assert (session_ref != from_voidp Session.t null);
+    let open Result in
+    assert (not @@ is_null session_ref);
     let get_cursor_ptr () =
       Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
     in
@@ -129,10 +131,11 @@ module Record = struct
     let close_cursor cursor_ptr =
       Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
     in
-    get_cursor_ptr () >>= insert >>= close_cursor |> Result.get_ok_or_fail
+    get_cursor_ptr () >>= insert >>= close_cursor |> ok_or_failwith
 
   let bulk_insert ~session_ref ~tbl_name ~keys_and_records =
-    assert (session_ref != from_voidp Session.t null);
+    let open Result in
+    assert (not @@ is_null session_ref);
     let get_cursor_ptr () =
       Table.open_cursor ~session_ref ~tbl_name ~config:"bulk,raw"
     in
@@ -148,7 +151,7 @@ module Record = struct
               let x, y =
                 (Bigarray.Array1.get lhs idx, Bigarray.Array1.get rhs idx)
               in
-              match (Char.code x, Char.code y) with
+              match (Char.to_int x, Char.to_int y) with
               | a, b when a < b -> -1
               | a, b when a > b -> 1
               | _ -> f (idx + 1))
@@ -163,26 +166,24 @@ module Record = struct
         Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
           "Couldn't insert data with the cursor"
       in
-      keys_and_records |> List.sort_uniq cmp
-      |> List.fold_left
-           (fun acc (key, record) -> Result.bind acc (perform_write key record))
-           (Result.Ok cursor_ptr)
+      keys_and_records |> List.sort ~compare:cmp
+      |> List.fold_left ~init:(Result.Ok cursor_ptr)
+           ~f:(fun acc (key, record) -> acc >>= perform_write key record)
     in
     let close_cursor cursor_ptr =
       Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
     in
-    get_cursor_ptr () >>= perform_writes >>= close_cursor
-    |> Result.get_ok_or_fail
+    get_cursor_ptr () >>= perform_writes >>= close_cursor |> ok_or_failwith
 
   let scan ~session_ref ~tbl_name =
-    assert (session_ref != from_voidp Session.t null);
+    let open Result in
+    assert (not @@ is_null session_ref);
     let cursor_ptr =
-      Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
-      |> Result.get_ok_or_fail
+      Table.open_cursor ~session_ref ~tbl_name ~config:"raw" |> ok_or_failwith
     in
     (* Set the minKey to 0, such that we always start from the first element in the table *)
     let minKey =
-      let byte0 = CArray.make char ~initial:(Char.chr 0) 1 in
+      let byte0 = CArray.make char ~initial:(Char.unsafe_of_int 0) 1 in
       Item.of_bytes (bigarray_of_array array1 Bigarray.Char byte0)
     in
     Cursor.set_key cursor_ptr (addr minKey);
@@ -197,10 +198,10 @@ module Record = struct
     (* Allocate only one item and reuse it throughout the iterations *)
     let item_ptr = Item.alloc (Ctypes.make Item.t) in
     let next () =
-      if cur_code.contents != 0 then None
+      if not @@ phys_equal 0 cur_code.contents then None
       else
         let value =
-          if Cursor.get_value cursor_ptr item_ptr != 0 then
+          if not @@ phys_equal 0 @@ Cursor.get_value cursor_ptr item_ptr then
             failwith "Couldn't get value from cursor";
           Item.to_bytes !@item_ptr
         in
