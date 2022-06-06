@@ -17,3 +17,17 @@ let create () : t =
 let db_session_ref db = db.db_session_ref
 let catalog db = db.catalog
 let create_tbl db tbl = Catalog.create_tbl db.catalog db.db_session_ref tbl
+
+let load_data db tbl_meta path =
+  let get_file_data path =
+    let read chan =
+      try Some (input_line chan, chan)
+      with End_of_file ->
+        close_in chan;
+        None
+    in
+    Core.Sequence.unfold ~init:(open_in path) ~f:read
+  in
+  get_file_data path
+  |> Core.Sequence.map ~f:(Tuple.parse @@ Table.T.Meta.schema tbl_meta)
+  |> Table.T.Crud.bulk_insert db.db_session_ref tbl_meta

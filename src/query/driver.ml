@@ -54,16 +54,26 @@ let make_operator_tree db = function
              tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
+  | _ -> failwith "Invalid code path"
 
 let run_ddl db = function
   | CreateTbl (tbl_name, tbl_elt_lst) ->
       let schema_of_col_defs tbl_elt_lst =
         let cols =
-          let get_cols = function ColDef (col, ty) -> (col, ty) in
-          List.map get_cols tbl_elt_lst
+          let get_cols = function
+            | ColDef (col, ty) -> Some (col, ty)
+            | _ -> None
+          in
+          List.filter_map get_cols tbl_elt_lst
         in
-        (* TODO: add support for primary key *)
-        (cols, [])
+        let primary_key_cols =
+          let get_cols = function
+            | ConstraintDef (PrimaryKey, cols) -> Some cols
+            | _ -> None
+          in
+          List.filter_map get_cols tbl_elt_lst |> List.flatten
+        in
+        (cols, primary_key_cols)
       in
       let schema = schema_of_col_defs tbl_elt_lst in
       Database.create_tbl db @@ Table.T.Meta.make tbl_name schema
@@ -71,6 +81,9 @@ let run_ddl db = function
 let run db ast f =
   match ast with
   | DDL cmd -> run_ddl db cmd
+  | DML (Copy (tbl_name, path)) ->
+      let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in
+      Database.load_data db tbl_meta path
   | DML cmd ->
       let tree =
         make_operator_tree db cmd

@@ -16,7 +16,10 @@ open Utils
 %token LPAR_SYMBOL
 %token RPAR_SYMBOL
 %token CREATE_SYMBOL
+%token COPY_SYMBOL
 %token TABLE_SYMBOL
+%token PRIMARY_SYMBOL
+%token KEY_SYMBOL
 %token INT_SYMBOL
 %token NUMERIC_SYMBOL
 %token CHAR_SYMBOL
@@ -29,6 +32,7 @@ open Utils
 
 %%
 
+/* TODO: extend the supported select grammar https://github.com/mysql/mysql-workbench/blob/8.0/library/parsers/grammars/MySQLParser.g4#L1063 */
 query:
   | e = dml; { DML (e) }
   | e = ddl; { DDL (e) }
@@ -51,27 +55,20 @@ tbl_elt_lst:
 
 tbl_elt:
   | col = col_def                              { col }
-  /* | tbl_constraint_def */
+  | constraint_def = tbl_constraint_def        { constraint_def }
 ;
 
 col_def:
   | name = col_name; field = fieldDefinition;  { ColDef (name, field) }
 ;
 
-/* tbl_constraint_def: */
-/*     type = (KEY_SYMBOL | INDEX_SYMBOL) indexNameAndType? keyListVariants indexOption* */
-/*     | type = FULLTEXT_SYMBOL keyOrIndex? indexName? keyListVariants fulltextIndexOption* */
-/*     | type = SPATIAL_SYMBOL keyOrIndex? indexName? keyListVariants spatialIndexOption* */
-/*     | constraintName? ( */
-/*         (type = PRIMARY_SYMBOL KEY_SYMBOL | type = UNIQUE_SYMBOL keyOrIndex?) indexNameAndType? keyListVariants indexOption* */
-/*         | type = FOREIGN_SYMBOL KEY_SYMBOL indexName? keyList references */
-/*         | checkConstraint ({serverVersion >= 80017}? constraintEnforcement)? */
-/*     ) */
-/* ; */
+tbl_constraint_def:
+  | PRIMARY_SYMBOL; KEY_SYMBOL; cols = key_list_with_expr { ConstraintDef(PrimaryKey, cols) }
+;
 
-/* constraintName: */
-/*     CONSTRAINT_SYMBOL identifier? */
-/* ; */
+key_list_with_expr:
+(* TODO: col_name is not really correct, as col_name will have dotted support later on *)
+  | LPAR_SYMBOL; cols = separated_list(COMMA_SYMBOL, col_name) RPAR_SYMBOL { cols }
 
 fieldDefinition:
   | t = data_type                              { t }
@@ -122,9 +119,9 @@ fieldLength:
 // --- DML ---------------------------------------------------------------------------------------
 dml:
   | e = select; { e }
+  | c = copy;   { c }
 ;
 
-/* TODO: extend the supported select grammar https://github.com/mysql/mysql-workbench/blob/8.0/library/parsers/grammars/MySQLParser.g4#L1063 */
 select:
   | SELECT_SYMBOL; attr_lst = select_item_list; tbl_lst = from_clause; pred_lst=option(where_clause); SEMICOLON_SYMBOL;
     { Select ( attr_lst, tbl_lst, pred_lst) }
@@ -162,6 +159,11 @@ predicate:
   |  attr  = attribute; EQ_SYMBOL; const = constant;  { EqConst (attr, const)  }
   |  attr1 = attribute; EQ_SYMBOL; attr2 = attribute; { EqAttr  (attr1, attr2) }
 ;
+
+/* AWS COPY-like command */
+copy:
+  | COPY_SYMBOL; name = tbl_name; FROM_SYMBOL; path = STRING; SEMICOLON_SYMBOL;
+    { Copy (name, path) }
 
 // --- Common basic rules ------------------------------------------------------------------------
 attribute:

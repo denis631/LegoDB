@@ -33,10 +33,13 @@ rule next_token = parse
   | "where"     { WHERE_SYMBOL }
   | "and"       { AND_SYMBOL }
   | "from"      { FROM_SYMBOL }
-  | '('         { LPAR_SYMBOL }
-  | ')'         { RPAR_SYMBOL }
   | "create"    { CREATE_SYMBOL }
   | "table"     { TABLE_SYMBOL }
+  | "primary"   { PRIMARY_SYMBOL }
+  | "key"       { KEY_SYMBOL }
+  | "copy"      { COPY_SYMBOL }
+  | '('         { LPAR_SYMBOL }
+  | ')'         { RPAR_SYMBOL }
   | "int"       { INT_SYMBOL }
   | "numeric"   { NUMERIC_SYMBOL }
   | "char"      { CHAR_SYMBOL }
