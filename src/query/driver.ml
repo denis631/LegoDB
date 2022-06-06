@@ -27,7 +27,7 @@ let make_match_tree db pred_lst =
   Match.Expr.And (List.map (make_expr db) pred_lst)
 
 let make_operator_tree db = function
-  | Select (attr_lst, tbl_lst, pred_lst) ->
+  | DML (Select (attr_lst, tbl_lst, pred_lst)) ->
       let tbls = List.map (Binder.find_table db) tbl_lst in
       let tbl_scan =
         let tbl_scans =
@@ -54,6 +54,10 @@ let make_operator_tree db = function
              tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
+  | _ ->
+      (* | DDL (CreateTbl (tbl_name, tbl_elt_lst)) -> *)
+      (*     Database.create_tbl db @@ Table.T.Meta.make tbl_name ([], []); *)
+      failwith ""
 
 let run db ast f =
   let tree =

@@ -24,19 +24,26 @@ rule next_token = parse
   | newline     { Lexing.new_line lexbuf; next_token lexbuf }
 
   (* YOUR TOKENS HERE... *)
-  | int      { INT (int_of_string (Lexing.lexeme lexbuf)) }
-  | ';'      { SEMICOLON }
-  | ','      { COMMA }
-  | '='      { EQ }
-  | '*'      { STAR } 
-  | "select" { SELECT }
-  | "where"  { WHERE }
-  | "and"    { AND }
-  | "from"   { FROM }
-  | '('      { LPAR }
-  | ')'      { RPAR }
-  | id       { ID (Lexing.lexeme lexbuf) }
-  | '"'      { read_string (Buffer.create 36) lexbuf }
+  | int         { INT (int_of_string (Lexing.lexeme lexbuf)) }
+  | ';'         { SEMICOLON_SYMBOL }
+  | ','         { COMMA_SYMBOL }
+  | '='         { EQ_SYMBOL }
+  | '*'         { STAR_SYMBOL }
+  | "select"    { SELECT_SYMBOL }
+  | "where"     { WHERE_SYMBOL }
+  | "and"       { AND_SYMBOL }
+  | "from"      { FROM_SYMBOL }
+  | '('         { LPAR_SYMBOL }
+  | ')'         { RPAR_SYMBOL }
+  | id          { ID (Lexing.lexeme lexbuf) }
+  | '"'         { read_string (Buffer.create 36) lexbuf }
+  | "create"    { CREATE_SYMBOL }
+  | "table"     { TABLE_SYMBOL }
+  | "int"       { INT_SYMBOL }
+  | "numeric"   { NUMERIC_SYMBOL }
+  | "char"      { CHAR_SYMBOL }
+  | "varchar"   { VARCHAR_SYMBOL }
+  | "timestamp" { TIMESTAMP_SYMBOL }
 
   (* no match? raise exception *)
   | _ as c { illegal c }
