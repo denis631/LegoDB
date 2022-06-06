@@ -27,3 +27,13 @@ let create session_ref =
   { meta; tbls }
 
 let tbls catalog = catalog.tbls
+
+let find_table catalog tbl_name =
+  let tbl_meta =
+    List.find
+      ~f:(fun tbl_meta -> String.equal tbl_name @@ Table.T.Meta.name tbl_meta)
+      catalog.tbls
+  in
+  match tbl_meta with
+  | Some meta -> meta
+  | None -> failwith @@ "Table with name " ^ tbl_name ^ " not found"

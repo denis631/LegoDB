@@ -28,7 +28,7 @@ let make_match_tree db pred_lst =
 
 let make_operator_tree db = function
   | DML (Select (attr_lst, tbl_lst, pred_lst)) ->
-      let tbls = List.map (Binder.find_table db) tbl_lst in
+      let tbls = List.map (Catalog.find_table @@ Database.catalog db) tbl_lst in
       let tbl_scan =
         let tbl_scans =
           List.map (fun tbl -> Logical.Operators.TableScan tbl) tbls

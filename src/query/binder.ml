@@ -1,12 +1,5 @@
 open Storage
 
-(** TODO: sounds like a job for the catalog **)
-let find_table db tbl_name =
-  try
-    db |> Database.catalog |> Catalog.tbls
-    |> List.find (fun tbl -> Table.T.Meta.name tbl = tbl_name)
-  with _ -> failwith @@ "Table with name " ^ tbl_name ^ " not found"
-
 let find_column_attr db attr_name =
   let find_attr_for_tbl tbl =
     let filter_col (col, ty) =
