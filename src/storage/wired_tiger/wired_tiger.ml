@@ -15,6 +15,8 @@ module Option = struct
   let of_result = function Ok x -> Some x | Error _ -> None
 end
 
+let assert_cmd cmd_code = assert (0 = cmd_code)
+
 type session_ref = Session.t ptr
 
 (* Establishes a connection and creates a new session_ref *)
@@ -77,9 +79,7 @@ module Table = struct
 
   let create ~session_ref ~tbl_name ~config =
     assert (not @@ is_null session_ref);
-    if
-      not @@ phys_equal 0
-      @@ Session.create_tbl session_ref ("table:" ^ tbl_name) config
+    if not @@ (0 = Session.create_tbl session_ref ("table:" ^ tbl_name) config)
     then failwith "Couldn't create the session"
 end
 
@@ -193,16 +193,17 @@ module Record = struct
         let code = Cursor.search_near cursor_ptr exact_ptr in
         if !@exact_ptr < 0 then Cursor.next cursor_ptr else code
       in
-      Stdlib.ref code
+      ref code
     in
     (* Allocate only one item and reuse it throughout the iterations *)
     let item_ptr = Item.alloc (Ctypes.make Item.t) in
     let next () =
-      if not @@ phys_equal 0 cur_code.contents then None
+      if not (0 = !cur_code) then (
+        assert_cmd @@ Cursor.close cursor_ptr;
+        None)
       else
         let value =
-          if not @@ phys_equal 0 @@ Cursor.get_value cursor_ptr item_ptr then
-            failwith "Couldn't get value from cursor";
+          assert_cmd @@ Cursor.get_value cursor_ptr item_ptr;
           Item.to_bytes !@item_ptr
         in
         cur_code := Cursor.next cursor_ptr;
