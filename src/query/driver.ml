@@ -1,7 +1,7 @@
 open Frontend.Ast
 open Storage
 open Expr
-open BatteriesExceptionless
+open Utils
 
 let make_expr db pred =
   let make_attr_iu = function
@@ -27,7 +27,7 @@ let make_match_tree db pred_lst =
   Match.Expr.And (List.map (make_expr db) pred_lst)
 
 let make_operator_tree db = function
-  | DML (Select (attr_lst, tbl_lst, pred_lst)) ->
+  | Select (attr_lst, tbl_lst, pred_lst) ->
       let tbls = List.map (Catalog.find_table @@ Database.catalog db) tbl_lst in
       let tbl_scan =
         let tbl_scans =
@@ -47,34 +47,46 @@ let make_operator_tree db = function
           |> List.map (Binder.find_column_attr db)
       in
       let select_ops =
-        pred_lst |> Option.default []
+        pred_lst |> Option.value ~default:[]
         |> List.map (make_expr db)
         |> List.fold_left
              (fun acc pred -> Logical.Operators.Selection (pred, acc))
              tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
-  | _ ->
-      (* | DDL (CreateTbl (tbl_name, tbl_elt_lst)) -> *)
-      (*     Database.create_tbl db @@ Table.T.Meta.make tbl_name ([], []); *)
-      failwith ""
+
+let run_ddl db = function
+  | CreateTbl (tbl_name, tbl_elt_lst) ->
+      let schema_of_col_defs tbl_elt_lst =
+        let cols =
+          let get_cols = function ColDef (col, ty) -> (col, ty) in
+          List.map get_cols tbl_elt_lst
+        in
+        (* TODO: add support for primary key *)
+        (cols, [])
+      in
+      let schema = schema_of_col_defs tbl_elt_lst in
+      Database.create_tbl db @@ Table.T.Meta.make tbl_name schema
 
 let run db ast f =
-  let tree =
-    ast |> make_operator_tree db
-    |> tap @@ (Logical.Operators.show %> print_endline)
-    |> Optimizer.optimize db
-    |> Physical.Operators.prepare []
-  in
-  let ctx = () in
-  let rec iter () =
-    match Physical.Operators.next ctx tree with
-    | Some (t, _) ->
-        f t;
-        iter ()
-    | None -> ()
-  in
-  iter ()
+  match ast with
+  | DDL cmd -> run_ddl db cmd
+  | DML cmd ->
+      let tree =
+        make_operator_tree db cmd
+        |> tap @@ (Logical.Operators.show %> print_endline)
+        |> Optimizer.optimize db
+        |> Physical.Operators.prepare []
+      in
+      let ctx = () in
+      let rec iter () =
+        match Physical.Operators.next ctx tree with
+        | Some (t, _) ->
+            f t;
+            iter ()
+        | None -> ()
+      in
+      iter ()
 
 let benchmark f =
   let t = Sys.time () in

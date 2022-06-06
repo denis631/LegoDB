@@ -35,8 +35,6 @@ rule next_token = parse
   | "from"      { FROM_SYMBOL }
   | '('         { LPAR_SYMBOL }
   | ')'         { RPAR_SYMBOL }
-  | id          { ID (Lexing.lexeme lexbuf) }
-  | '"'         { read_string (Buffer.create 36) lexbuf }
   | "create"    { CREATE_SYMBOL }
   | "table"     { TABLE_SYMBOL }
   | "int"       { INT_SYMBOL }
@@ -44,6 +42,8 @@ rule next_token = parse
   | "char"      { CHAR_SYMBOL }
   | "varchar"   { VARCHAR_SYMBOL }
   | "timestamp" { TIMESTAMP_SYMBOL }
+  | id          { ID (Lexing.lexeme lexbuf) }
+  | '"'         { read_string (Buffer.create 36) lexbuf }
 
   (* no match? raise exception *)
   | _ as c { illegal c }

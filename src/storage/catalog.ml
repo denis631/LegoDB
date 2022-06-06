@@ -2,7 +2,7 @@ open Core
 
 type t = { meta : Table.T.Meta.t; mutable tbls : Table.T.Meta.t list }
 
-let name = "__catalog"
+let name = "LegoDB_catalog"
 
 let create_tbl catalog session_ref tbl_meta =
   Wired_tiger.Txn.begin_txn session_ref;
@@ -13,7 +13,10 @@ let create_tbl catalog session_ref tbl_meta =
   catalog.tbls <- tbl_meta :: catalog.tbls
 
 let create session_ref =
-  let meta = Table.T.Meta.make name ([], []) in
+  let meta =
+    Table.T.Meta.make name
+      ([ ("name", VarChar 128); ("schema", VarChar 128) ], [ "name" ])
+  in
   let tbls =
     if not (Table.T.Crud.exists session_ref meta) then (
       Table.T.Crud.create session_ref meta;
@@ -26,13 +29,13 @@ let create session_ref =
   in
   { meta; tbls }
 
-let tbls catalog = catalog.tbls
+let tbls catalog = catalog.meta :: catalog.tbls
 
 let find_table catalog tbl_name =
   let tbl_meta =
     List.find
       ~f:(fun tbl_meta -> String.equal tbl_name @@ Table.T.Meta.name tbl_meta)
-      catalog.tbls
+      (tbls catalog)
   in
   match tbl_meta with
   | Some meta -> meta

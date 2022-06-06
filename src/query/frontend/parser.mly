@@ -40,8 +40,8 @@ ddl:
 ;
 
 create_tbl:
-  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_name; LPAR_SYMBOL; elt_lst = tbl_elt_lst; RPAR_SYMBOL; SEMICOLON_SYMBOL;
-    { CreateTbl (name, elt_lst) }
+  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_name; LPAR_SYMBOL; elt_lst = option(tbl_elt_lst); RPAR_SYMBOL; SEMICOLON_SYMBOL;
+    { CreateTbl (name, Option.value elt_lst ~default:[]) }
 ;
 
 tbl_elt_lst:
