@@ -28,11 +28,14 @@ module type Tbl = sig
   module Crud : sig
     val exists : Wired_tiger.session_ref -> Meta.t -> bool
     val create : Wired_tiger.session_ref -> Meta.t -> unit
+    val drop : Wired_tiger.session_ref -> Meta.t -> unit
     val read_all : Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t
     val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
 
     val bulk_insert :
       Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t -> unit
+
+    val delete : Wired_tiger.session_ref -> Meta.t -> record -> unit
   end
 
   val ius : Meta.t -> Iu.t list

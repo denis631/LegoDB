@@ -17,6 +17,7 @@ let create () : t =
 let db_session_ref db = db.db_session_ref
 let catalog db = db.catalog
 let create_tbl db tbl = Catalog.create_tbl db.catalog db.db_session_ref tbl
+let drop_tbl db tbl = Catalog.drop_tbl db.catalog db.db_session_ref tbl
 
 let load_data db tbl_meta path =
   let get_file_data path =

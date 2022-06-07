@@ -15,6 +15,8 @@ module Table : sig
 
   val create :
     session_ref:session_ref -> tbl_name:string -> config:string -> unit
+
+  val drop : session_ref:session_ref -> tbl_name:string -> config:string -> unit
 end
 
 (* Operations on records *)
@@ -29,6 +31,8 @@ module Record : sig
 
   val insert_one :
     session_ref:session_ref -> tbl_name:string -> key:t -> record:t -> unit
+
+  val delete_one : session_ref:session_ref -> tbl_name:string -> key:t -> unit
 
   val lookup_one :
     session_ref:session_ref -> tbl_name:string -> key:t -> t option

@@ -77,6 +77,10 @@ let run_ddl db = function
       in
       let schema = schema_of_col_defs tbl_elt_lst in
       Database.create_tbl db @@ Table.T.Meta.make tbl_name schema
+  | DropTbl tbls ->
+      tbls
+      |> List.map (Catalog.find_table (Database.catalog db))
+      |> List.iter (Database.drop_tbl db)
 
 let run db ast f =
   match ast with

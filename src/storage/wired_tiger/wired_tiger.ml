@@ -81,6 +81,11 @@ module Table = struct
     assert (not @@ is_null session_ref);
     if not @@ (0 = Session.create_tbl session_ref ("table:" ^ tbl_name) config)
     then failwith "Couldn't create the session"
+
+  let drop ~session_ref ~tbl_name ~config =
+    assert (not @@ is_null session_ref);
+    if not @@ (0 = Session.drop_tbl session_ref ("table:" ^ tbl_name) config)
+    then failwith "Couldn't drop the table"
 end
 
 module Record = struct
@@ -132,6 +137,23 @@ module Record = struct
       Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
     in
     get_cursor_ptr () >>= insert >>= close_cursor |> ok_or_failwith
+
+  let delete_one ~session_ref ~tbl_name ~key =
+    let open Result in
+    assert (not @@ is_null session_ref);
+    let get_cursor_ptr () =
+      Table.open_cursor ~session_ref ~tbl_name ~config:"raw"
+    in
+    let delete cursor_ptr =
+      let item_key = Item.alloc @@ Item.of_bytes key in
+      Cursor.set_key cursor_ptr item_key;
+      Result.of_code (Cursor.remove cursor_ptr) cursor_ptr
+        "Couldn't delete data with the cursor"
+    in
+    let close_cursor cursor_ptr =
+      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
+    in
+    get_cursor_ptr () >>= delete >>= close_cursor |> ok_or_failwith
 
   let bulk_insert ~session_ref ~tbl_name ~keys_and_records =
     let open Result in

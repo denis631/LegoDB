@@ -32,11 +32,14 @@ module type Tbl = sig
   module Crud : sig
     val exists : Wired_tiger.session_ref -> Meta.t -> bool
     val create : Wired_tiger.session_ref -> Meta.t -> unit
+    val drop : Wired_tiger.session_ref -> Meta.t -> unit
     val read_all : Wired_tiger.session_ref -> Meta.t -> record Sequence.t
     val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
 
     val bulk_insert :
       Wired_tiger.session_ref -> Meta.t -> record Sequence.t -> unit
+
+    val delete : Wired_tiger.session_ref -> Meta.t -> record -> unit
   end
 
   val ius : Meta.t -> Iu.t list
@@ -80,6 +83,7 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
     let show (_, col, ty) = "col: " ^ col ^ " | type: " ^ Value_type.show ty
   end
 
+  (* TODO: define CRUD.Table modules *)
   module Crud = struct
     let to_key meta record =
       let columns = List.map ~f:fst @@ fst @@ Meta.schema meta in
@@ -100,6 +104,9 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
       Wired_tiger.Table.create ~session_ref ~tbl_name:(Meta.name meta)
         ~config:"key_format:u,value_format:u"
 
+    let drop session_ref meta =
+      Wired_tiger.Table.drop ~session_ref ~tbl_name:(Meta.name meta) ~config:""
+
     let read_all session_ref meta =
       let scanner =
         Wired_tiger.Record.scan ~session_ref ~tbl_name:(Meta.name meta)
@@ -115,6 +122,10 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
       Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
         ~key:(M.marshal @@ to_key meta record)
         ~record:(M.marshal record)
+
+    let delete session_ref meta record =
+      Wired_tiger.Record.delete_one ~session_ref ~tbl_name:(Meta.name meta)
+        ~key:(M.marshal @@ to_key meta record)
 
     let bulk_insert session_ref meta records =
       let data =

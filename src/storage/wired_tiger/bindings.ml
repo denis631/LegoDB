@@ -82,7 +82,7 @@ module Cursor = struct
   let _ = field cursor_t "update" (funptr (ptr cursor_t @-> returning int))
 
   (* int __F(remove)(WT_CURSOR *cursor); *)
-  let _ = field cursor_t "remove" (funptr (ptr cursor_t @-> returning int))
+  let remove = field cursor_t "remove" (funptr (ptr cursor_t @-> returning int))
 
   (* int __F(reserve)(WT_CURSOR *cursor); *)
   let _ = field cursor_t "reserve" (funptr (ptr cursor_t @-> returning int))
@@ -211,7 +211,7 @@ module Session = struct
          (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))
 
   (* int __F(drop)(WT_SESSION *session, const char *name, const char *config); *)
-  let _ =
+  let drop =
     field session_t "drop"
       (funptr
          (ptr session_t @-> Ctypes.string @-> Ctypes.string @-> returning int))

@@ -16,6 +16,7 @@ open Utils
 %token LPAR_SYMBOL
 %token RPAR_SYMBOL
 %token CREATE_SYMBOL
+%token DROP_SYMBOL
 %token COPY_SYMBOL
 %token TABLE_SYMBOL
 %token PRIMARY_SYMBOL
@@ -41,6 +42,7 @@ query:
 // --- DDL ---------------------------------------------------------------------------------------
 ddl:
   | e = create_tbl; { e }
+  | e = drop_tbl;   { e }
 ;
 
 create_tbl:
@@ -48,51 +50,55 @@ create_tbl:
     { CreateTbl (name, Option.value elt_lst ~default:[]) }
 ;
 
+drop_tbl:
+  | DROP_SYMBOL; TABLE_SYMBOL; tbls = separated_list(COMMA_SYMBOL, tbl_name); SEMICOLON_SYMBOL;
+    { DropTbl (tbls) }
+;
+
 tbl_elt_lst:
-  | x = tbl_elt; COMMA_SYMBOL; xs = tbl_elt_lst       { x::xs }
-  | x = tbl_elt                                { [x] }
+  | elts = separated_list(COMMA_SYMBOL, tbl_elt)                                { elts }
 ;
 
 tbl_elt:
-  | col = col_def                              { col }
-  | constraint_def = tbl_constraint_def        { constraint_def }
+  | col = col_def                                                               { col }
+  | constraint_def = tbl_constraint_def                                         { constraint_def }
 ;
 
 col_def:
-  | name = col_name; field = fieldDefinition;  { ColDef (name, field) }
+  | name = col_name; field = fieldDefinition;                                   { ColDef (name, field) }
 ;
 
 tbl_constraint_def:
-  | PRIMARY_SYMBOL; KEY_SYMBOL; cols = key_list_with_expr { ConstraintDef(PrimaryKey, cols) }
+  | PRIMARY_SYMBOL; KEY_SYMBOL; cols = key_list_with_expr                       { ConstraintDef(PrimaryKey, cols) }
 ;
 
 key_list_with_expr:
 (* TODO: col_name is not really correct, as col_name will have dotted support later on *)
-  | LPAR_SYMBOL; cols = separated_list(COMMA_SYMBOL, col_name) RPAR_SYMBOL { cols }
+  | LPAR_SYMBOL; cols = separated_list(COMMA_SYMBOL, col_name) RPAR_SYMBOL      { cols }
 
 fieldDefinition:
-  | t = data_type                              { t }
+  | t = data_type                                                               { t }
     /* dataType col_attr* */
 ;
 
 data_type:
-  | INT_SYMBOL                                        { Value_type.Integer }
-  | NUMERIC_SYMBOL; l = floatOptions                  { Value_type.Numeric (fst l, snd l) }
-  | CHAR_SYMBOL; l = fieldLength                      { Value_type.Char l }
-  | VARCHAR_SYMBOL; l = fieldLength                   { Value_type.VarChar l }
-  | TIMESTAMP_SYMBOL;                                 { Value_type.Timestamp }
+  | INT_SYMBOL                                                                  { Value_type.Integer }
+  | NUMERIC_SYMBOL; l = floatOptions                                            { Value_type.Numeric (fst l, snd l) }
+  | CHAR_SYMBOL; l = fieldLength                                                { Value_type.Char l }
+  | VARCHAR_SYMBOL; l = fieldLength                                             { Value_type.VarChar l }
+  | TIMESTAMP_SYMBOL;                                                           { Value_type.Timestamp }
 ;
 
 floatOptions:
     /* fieldLength */
-  | x = precision                              { x }
+  | x = precision                                                               { x }
 ;
 
 precision:
-  | LPAR_SYMBOL; a = INT; COMMA_SYMBOL; b = INT; RPAR_SYMBOL        { (a, b) }
+  | LPAR_SYMBOL; a = INT; COMMA_SYMBOL; b = INT; RPAR_SYMBOL                    { (a, b) }
 
 fieldLength:
-  | LPAR_SYMBOL; a = INT; RPAR_SYMBOL                        { a }
+  | LPAR_SYMBOL; a = INT; RPAR_SYMBOL                                           { a }
 
 /* col_attr: */
 /*     NOT_SYMBOL? nullLiteral */
@@ -118,8 +124,8 @@ fieldLength:
 
 // --- DML ---------------------------------------------------------------------------------------
 dml:
-  | e = select; { e }
-  | c = copy;   { c }
+  | e = select;                                                                 { e }
+  | c = copy;                                                                   { c }
 ;
 
 select:
@@ -128,31 +134,28 @@ select:
 ;
 
 select_item_list:
-  | x = select_item; COMMA_SYMBOL; xs = select_item_list  { x::xs  }
-  | x = select_item;                               { [x]    }
+  | items = separated_list(COMMA_SYMBOL, select_item)                           { items }
 ;
 
 select_item:
-  | x = attribute; { x    }
-  | STAR_SYMBOL;          { Star }
+  | x = attribute;                                                              { x }
+  | STAR_SYMBOL;                                                                { Star }
 ;
 
 from_clause:
-  | FROM_SYMBOL; tbl_lst = table_list                 { tbl_lst }
+  | FROM_SYMBOL; tbl_lst = table_list                                           { tbl_lst }
 ;
 
 table_list:
-  | x = ID; COMMA_SYMBOL; xs = table_list             { x::xs }
-  | x = ID;                                           { [x]   }
+  | ids = separated_list(COMMA_SYMBOL, ID)                                      { ids }
 ;
 
 where_clause:
-  | WHERE_SYMBOL; pred_lst = predicate_list           { pred_lst }
+  | WHERE_SYMBOL; pred_lst = predicate_list                                     { pred_lst }
 ;
 
 predicate_list:
-  | x = predicate; AND_SYMBOL; xs = predicate_list    { x::xs }
-  | x = predicate;                             { [x]   }
+  | preds = separated_list(AND_SYMBOL, predicate)                               { preds }
 ;
 
 predicate:

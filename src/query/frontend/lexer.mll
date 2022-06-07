@@ -34,6 +34,7 @@ rule next_token = parse
   | "and"       { AND_SYMBOL }
   | "from"      { FROM_SYMBOL }
   | "create"    { CREATE_SYMBOL }
+  | "drop"      { DROP_SYMBOL }
   | "table"     { TABLE_SYMBOL }
   | "primary"   { PRIMARY_SYMBOL }
   | "key"       { KEY_SYMBOL }

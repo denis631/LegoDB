@@ -12,7 +12,9 @@ type tbl_elt =
   | ColDef of string * Value_type.t
   | ConstraintDef of key_type * col_name list
 
-type ddl_expr = CreateTbl of tbl_name * tbl_elt list
+type ddl_expr =
+  | CreateTbl of tbl_name * tbl_elt list
+  | DropTbl of tbl_name list
 
 type dml_expr =
   | Select of attr list * tbl_name list * pred list option

@@ -4,6 +4,8 @@ type t = { meta : Table.T.Meta.t; mutable tbls : Table.T.Meta.t list }
 
 let name = "LegoDB_catalog"
 
+(* TODO: define mli *)
+(* TODO: define CRUD.Table modules *)
 let create_tbl catalog session_ref tbl_meta =
   Wired_tiger.Txn.begin_txn session_ref;
   Table.T.Crud.create session_ref tbl_meta;
@@ -11,6 +13,15 @@ let create_tbl catalog session_ref tbl_meta =
     (Table.T.Meta.Marshaller.marshal tbl_meta);
   Wired_tiger.Txn.commit_txn session_ref;
   catalog.tbls <- tbl_meta :: catalog.tbls
+
+let drop_tbl catalog session_ref tbl_meta =
+  Wired_tiger.Txn.begin_txn session_ref;
+  Table.T.Crud.drop session_ref tbl_meta;
+  Table.T.Crud.delete session_ref catalog.meta
+    (Table.T.Meta.Marshaller.marshal tbl_meta);
+  Wired_tiger.Txn.commit_txn session_ref;
+  catalog.tbls <-
+    List.filter ~f:(fun meta -> not @@ phys_equal meta tbl_meta) catalog.tbls
 
 let create session_ref =
   let meta =

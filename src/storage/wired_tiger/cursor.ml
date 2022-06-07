@@ -12,6 +12,7 @@ let set_value cursor_ptr =
   getf !@cursor_ptr Bindings.Cursor.set_value cursor_ptr
 
 let insert cursor_ptr = getf !@cursor_ptr Bindings.Cursor.insert cursor_ptr
+let remove cursor_ptr = getf !@cursor_ptr Bindings.Cursor.remove cursor_ptr
 let next cursor_ptr = getf !@cursor_ptr Bindings.Cursor.next cursor_ptr
 let search cursor_ptr = getf !@cursor_ptr Bindings.Cursor.search cursor_ptr
 
