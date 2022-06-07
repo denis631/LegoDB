@@ -6,6 +6,4 @@
    logical
    physical
    expr
-   optimizer
-
-   batteries))
+   optimizer))

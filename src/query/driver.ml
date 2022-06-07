@@ -2,6 +2,7 @@ open Frontend.Ast
 open Storage
 open Expr
 open Utils
+open Core
 
 let make_expr db pred =
   let make_attr_iu = function
@@ -24,63 +25,55 @@ let make_expr db pred =
       Match.Expr.Eq (lhs, rhs)
 
 let make_match_tree db pred_lst =
-  Match.Expr.And (List.map (make_expr db) pred_lst)
+  Match.Expr.And (List.map ~f:(make_expr db) pred_lst)
 
 let make_operator_tree db = function
   | Select (attr_lst, tbl_lst, pred_lst) ->
-      let tbls = List.map (Catalog.find_table @@ Database.catalog db) tbl_lst in
       let tbl_scan =
-        let tbl_scans =
-          List.map (fun tbl -> Logical.Operators.TableScan tbl) tbls
-        in
-        BatList.reduce
-          (fun acc op -> Logical.Operators.CrossProduct (acc, op))
-          tbl_scans
+        let find_tbl = Catalog.find_table @@ Database.catalog db in
+        let mk_tbl_scan tbl = Logical.Operators.TableScan tbl in
+        Sequence.of_list tbl_lst
+        |> Sequence.map ~f:(find_tbl %> mk_tbl_scan)
+        |> Sequence.reduce ~f:(fun acc op ->
+               Logical.Operators.CrossProduct (acc, op))
+        |> Stdlib.Option.get
       in
       let attrs =
-        if List.exists (( = ) Star) attr_lst then
+        if List.exists ~f:(phys_equal Star) attr_lst then
           failwith "TODO: implement projection of all attributes"
         else
-          attr_lst
-          |> List.filter_map (fun attr ->
-                 match attr with AttrName s -> Some s | Star -> None)
-          |> List.map (Binder.find_column_attr db)
+          Sequence.of_list attr_lst
+          |> Sequence.filter_map ~f:(function
+               | AttrName s -> Some s
+               | Star -> None)
+          |> Sequence.map ~f:(Binder.find_column_attr db)
+          |> Sequence.to_list
       in
       let select_ops =
-        pred_lst |> Option.value ~default:[]
-        |> List.map (make_expr db)
-        |> List.fold_left
-             (fun acc pred -> Logical.Operators.Selection (pred, acc))
-             tbl_scan
+        let mk_select child pred = Logical.Operators.Selection (pred, child) in
+        Option.value ~default:[] pred_lst
+        |> Sequence.of_list
+        |> Sequence.map ~f:(make_expr db)
+        |> Sequence.fold ~f:mk_select ~init:tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
   | _ -> failwith "Invalid code path"
 
 let run_ddl db = function
   | CreateTbl (tbl_name, tbl_elt_lst) ->
-      let schema_of_col_defs tbl_elt_lst =
-        let cols =
-          let get_cols = function
-            | ColDef (col, ty) -> Some (col, ty)
-            | _ -> None
-          in
-          List.filter_map get_cols tbl_elt_lst
-        in
-        let primary_key_cols =
-          let get_cols = function
-            | ConstraintDef (PrimaryKey, cols) -> Some cols
-            | _ -> None
-          in
-          List.filter_map get_cols tbl_elt_lst |> List.flatten
-        in
-        (cols, primary_key_cols)
+      let schema =
+        List.fold_right
+          ~f:(fun tbl_elt acc ->
+            match tbl_elt with
+            | ColDef (col, ty) -> ((col, ty) :: fst acc, snd acc)
+            | ConstraintDef (PrimaryKey, cols) -> (fst acc, cols))
+          ~init:([], []) tbl_elt_lst
       in
-      let schema = schema_of_col_defs tbl_elt_lst in
       Database.create_tbl db @@ Table.T.Meta.make tbl_name schema
   | DropTbl tbls ->
-      tbls
-      |> List.map (Catalog.find_table (Database.catalog db))
-      |> List.iter (Database.drop_tbl db)
+      Sequence.of_list tbls
+      |> Sequence.map ~f:(Catalog.find_table (Database.catalog db))
+      |> Sequence.iter ~f:(Database.drop_tbl db)
 
 let run db ast f =
   match ast with
@@ -106,7 +99,7 @@ let run db ast f =
       iter ()
 
 let benchmark f =
-  let t = Sys.time () in
+  let t = Stdlib.Sys.time () in
   let result = f () in
-  Printf.printf "Execution time: %fs\n" (Sys.time () -. t);
+  Printf.printf "Execution time: %fs\n" (Stdlib.Sys.time () -. t);
   result
