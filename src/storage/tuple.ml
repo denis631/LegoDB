@@ -6,9 +6,8 @@ type tuple = t
 
 let eq lhs rhs = not @@ List.exists2 (neg2 Value.eq) lhs rhs
 
-(* TODO: make separator as an argument to func *)
-let parse schema data =
-  data |> String.split_on_char '|'
+let parse schema data ~sep =
+  String.split_on_char sep data
   |> List.map2 Value.parse (List.map snd (fst schema))
 
 let hash t = List.map Value.hash t |> List.reduce Int64.logxor |> Option.get

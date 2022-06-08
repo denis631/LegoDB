@@ -5,7 +5,7 @@ type t = Value.t list
 type tuple = t
 
 val eq : t -> t -> bool
-val parse : Schema.t -> string -> t
+val parse : Schema.t -> string -> sep:char -> t
 val hash : t -> int64
 val get : t -> int -> Value.t
 val take : int -> t -> t

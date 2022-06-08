@@ -5,7 +5,6 @@ type t = { meta : Table.T.Meta.t; mutable tbls : Table.T.Meta.t list }
 let name = "LegoDB_catalog"
 
 (* TODO: define mli *)
-(* TODO: define CRUD.Table modules *)
 let create_tbl catalog session_ref tbl_meta =
   Wired_tiger.Txn.begin_txn session_ref;
   Table.T.Crud.create session_ref tbl_meta;

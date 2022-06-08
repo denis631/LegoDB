@@ -24,11 +24,21 @@ let load_data db tbl_meta path =
     let read chan =
       try Some (input_line chan, chan)
       with End_of_file ->
+        (* If there is no more data, then close the file *)
         close_in chan;
         None
     in
     Core.Sequence.unfold ~init:(open_in path) ~f:read
   in
+  let sep =
+    match String.sub path (String.length path - 3) 3 with
+    | "tbl" -> '|'
+    | "csv" -> ';'
+    | _ ->
+        failwith
+          "Unknown format. Don't know what is the separtor for it in order to \
+           parse"
+  in
   get_file_data path
-  |> Core.Sequence.map ~f:(Tuple.parse @@ Table.T.Meta.schema tbl_meta)
+  |> Core.Sequence.map ~f:(Tuple.parse ~sep @@ Table.T.Meta.schema tbl_meta)
   |> Table.T.Crud.bulk_insert db.db_session_ref tbl_meta

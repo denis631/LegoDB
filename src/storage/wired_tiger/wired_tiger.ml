@@ -188,7 +188,8 @@ module Record = struct
         Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
           "Couldn't insert data with the cursor"
       in
-      keys_and_records |> List.sort ~compare:cmp
+      keys_and_records
+      |> List.dedup_and_sort ~compare:cmp
       |> List.fold_left ~init:(Result.Ok cursor_ptr)
            ~f:(fun acc (key, record) -> acc >>= perform_write key record)
     in

@@ -74,7 +74,6 @@ let run_ddl db = function
       Sequence.of_list tbls
       |> Sequence.map ~f:(Catalog.find_table (Database.catalog db))
       |> Sequence.iter ~f:(Database.drop_tbl db)
-
 let run db ast f =
   match ast with
   | DDL cmd -> run_ddl db cmd
@@ -84,7 +83,7 @@ let run db ast f =
   | DML cmd ->
       let tree =
         make_operator_tree db cmd
-        |> tap @@ (Logical.Operators.show %> print_endline)
+        |> tap (Logical.Operators.show %> print_endline)
         |> Optimizer.optimize db
         |> Physical.Operators.prepare []
       in
@@ -100,6 +99,5 @@ let run db ast f =
 
 let benchmark f =
   let t = Stdlib.Sys.time () in
-  let result = f () in
-  Printf.printf "Execution time: %fs\n" (Stdlib.Sys.time () -. t);
-  result
+  let log _ = Printf.printf "Execution time: %fs\n" (Stdlib.Sys.time () -. t) in
+  f () |> tap log
