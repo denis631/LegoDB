@@ -4,9 +4,9 @@ open Expr
 open Utils
 open Core
 
-let make_expr db pred =
+let make_expr tbl_meta_lst pred =
   let make_attr_iu = function
-    | AttrName x -> Binder.find_column_attr db x
+    | AttrName x -> Binder.find_column_attr tbl_meta_lst x
     | _ -> failwith "TODO: support this use-case"
   in
   let make_const = function
@@ -29,13 +29,18 @@ let make_match_tree db pred_lst =
 
 let make_operator_tree db = function
   | Select (attr_lst, tbl_lst, pred_lst) ->
-      let tbl_scan =
+      let tbl_meta_seq =
         let find_tbl = Catalog.find_table @@ Database.catalog db in
+        Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl
+      in
+      let tbl_scan =
         let mk_tbl_scan tbl = Logical.Operators.TableScan tbl in
-        Sequence.of_list tbl_lst
-        |> Sequence.map ~f:(find_tbl %> mk_tbl_scan)
-        |> Sequence.reduce ~f:(fun acc op ->
-               Logical.Operators.CrossProduct (acc, op))
+        let mk_cross_product lhs rhs =
+          Logical.Operators.CrossProduct (lhs, rhs)
+        in
+        tbl_meta_seq
+        |> Sequence.map ~f:mk_tbl_scan
+        |> Sequence.reduce ~f:mk_cross_product
         |> Stdlib.Option.get
       in
       let attrs =
@@ -46,14 +51,15 @@ let make_operator_tree db = function
           |> Sequence.filter_map ~f:(function
                | AttrName s -> Some s
                | Star -> None)
-          |> Sequence.map ~f:(Binder.find_column_attr db)
+          |> Sequence.map
+               ~f:(Binder.find_column_attr (Sequence.to_list tbl_meta_seq))
           |> Sequence.to_list
       in
       let select_ops =
         let mk_select child pred = Logical.Operators.Selection (pred, child) in
         Option.value ~default:[] pred_lst
         |> Sequence.of_list
-        |> Sequence.map ~f:(make_expr db)
+        |> Sequence.map ~f:(make_expr (Sequence.to_list tbl_meta_seq))
         |> Sequence.fold ~f:mk_select ~init:tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
@@ -74,6 +80,7 @@ let run_ddl db = function
       Sequence.of_list tbls
       |> Sequence.map ~f:(Catalog.find_table (Database.catalog db))
       |> Sequence.iter ~f:(Database.drop_tbl db)
+
 let run db ast f =
   match ast with
   | DDL cmd -> run_ddl db cmd
