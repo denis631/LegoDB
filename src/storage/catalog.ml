@@ -7,16 +7,16 @@ let name = "LegoDB_catalog"
 (* TODO: define mli *)
 let create_tbl catalog session_ref tbl_meta =
   Wired_tiger.Txn.begin_txn session_ref;
-  Table.T.Crud.create session_ref tbl_meta;
-  Table.T.Crud.insert session_ref catalog.meta
+  Table.T.Crud.Tbl.create session_ref tbl_meta;
+  Table.T.Crud.Record.insert session_ref catalog.meta
     (Table.T.Meta.Marshaller.marshal tbl_meta);
   Wired_tiger.Txn.commit_txn session_ref;
   catalog.tbls <- tbl_meta :: catalog.tbls
 
 let drop_tbl catalog session_ref tbl_meta =
   Wired_tiger.Txn.begin_txn session_ref;
-  Table.T.Crud.drop session_ref tbl_meta;
-  Table.T.Crud.delete session_ref catalog.meta
+  Table.T.Crud.Tbl.drop session_ref tbl_meta;
+  Table.T.Crud.Record.delete session_ref catalog.meta
     (Table.T.Meta.Marshaller.marshal tbl_meta);
   Wired_tiger.Txn.commit_txn session_ref;
   catalog.tbls <-
@@ -28,12 +28,12 @@ let create session_ref =
       ([ ("name", VarChar 128); ("schema", VarChar 128) ], [ "name" ])
   in
   let tbls =
-    if not (Table.T.Crud.exists session_ref meta) then (
-      Table.T.Crud.create session_ref meta;
+    if not (Table.T.Crud.Tbl.exists session_ref meta) then (
+      Table.T.Crud.Tbl.create session_ref meta;
       [])
     else
       meta
-      |> Table.T.Crud.read_all session_ref
+      |> Table.T.Crud.Record.read_all session_ref
       |> Sequence.map ~f:Table.T.Meta.Marshaller.unmarshal
       |> Sequence.to_list
   in

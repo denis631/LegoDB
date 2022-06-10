@@ -30,16 +30,21 @@ module type Tbl = sig
   end
 
   module Crud : sig
-    val exists : Wired_tiger.session_ref -> Meta.t -> bool
-    val create : Wired_tiger.session_ref -> Meta.t -> unit
-    val drop : Wired_tiger.session_ref -> Meta.t -> unit
-    val read_all : Wired_tiger.session_ref -> Meta.t -> record Sequence.t
-    val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
+    module Tbl : sig
+      val exists : Wired_tiger.session_ref -> Meta.t -> bool
+      val create : Wired_tiger.session_ref -> Meta.t -> unit
+      val drop : Wired_tiger.session_ref -> Meta.t -> unit
+    end
 
-    val bulk_insert :
-      Wired_tiger.session_ref -> Meta.t -> record Sequence.t -> unit
+    module Record : sig
+      val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
 
-    val delete : Wired_tiger.session_ref -> Meta.t -> record -> unit
+      val bulk_insert :
+        Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t -> unit
+
+      val read_all : Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t
+      val delete : Wired_tiger.session_ref -> Meta.t -> record -> unit
+    end
   end
 
   val ius : Meta.t -> Iu.t list
@@ -83,7 +88,6 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
     let show (_, col, ty) = "col: " ^ col ^ " | type: " ^ Value_type.show ty
   end
 
-  (* TODO: define CRUD.Table modules *)
   module Crud = struct
     let to_key meta record =
       let columns = List.map ~f:fst @@ fst @@ Meta.schema meta in
@@ -97,44 +101,48 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
         ~f:(Fn.compose extract_field_from_record_at_idx find_col_idx)
         primary_key_columns
 
-    let exists session_ref meta =
-      Wired_tiger.Table.exists ~session_ref ~tbl_name:(Meta.name meta)
+    module Tbl = struct
+      let exists session_ref meta =
+        Wired_tiger.Table.exists ~session_ref ~tbl_name:(Meta.name meta)
 
-    let create session_ref meta =
-      Wired_tiger.Table.create ~session_ref ~tbl_name:(Meta.name meta)
-        ~config:"key_format:u,value_format:u"
+      let create session_ref meta =
+        Wired_tiger.Table.create ~session_ref ~tbl_name:(Meta.name meta)
+          ~config:"key_format:u,value_format:u"
 
-    let drop session_ref meta =
-      Wired_tiger.Table.drop ~session_ref ~tbl_name:(Meta.name meta) ~config:""
+      let drop session_ref meta =
+        Wired_tiger.Table.drop ~session_ref ~tbl_name:(Meta.name meta) ~config:""
+    end
 
-    let read_all session_ref meta =
-      let scanner =
-        Wired_tiger.Record.scan ~session_ref ~tbl_name:(Meta.name meta)
-      in
-      let generator f =
-        match f () with
-        | Some record -> Some (M.unmarshal record, f)
-        | None -> None
-      in
-      Sequence.unfold ~init:scanner ~f:generator
+    module Record = struct
+      let insert session_ref meta record =
+        Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
+          ~key:(M.marshal @@ to_key meta record)
+          ~record:(M.marshal record)
 
-    let insert session_ref meta record =
-      Wired_tiger.Record.insert_one ~session_ref ~tbl_name:(Meta.name meta)
-        ~key:(M.marshal @@ to_key meta record)
-        ~record:(M.marshal record)
+      let bulk_insert session_ref meta records =
+        let data =
+          Sequence.map
+            ~f:(fun r -> (M.marshal @@ to_key meta r, M.marshal r))
+            records
+        in
+        Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
+          ~keys_and_records:(Sequence.to_list data)
 
-    let delete session_ref meta record =
-      Wired_tiger.Record.delete_one ~session_ref ~tbl_name:(Meta.name meta)
-        ~key:(M.marshal @@ to_key meta record)
+      let read_all session_ref meta =
+        let scanner =
+          Wired_tiger.Record.scan ~session_ref ~tbl_name:(Meta.name meta)
+        in
+        let generator f =
+          match f () with
+          | Some record -> Some (M.unmarshal record, f)
+          | None -> None
+        in
+        Sequence.unfold ~init:scanner ~f:generator
 
-    let bulk_insert session_ref meta records =
-      let data =
-        Sequence.map
-          ~f:(fun r -> (M.marshal @@ to_key meta r, M.marshal r))
-          records
-      in
-      Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name:(Meta.name meta)
-        ~keys_and_records:(Sequence.to_list data)
+      let delete session_ref meta record =
+        Wired_tiger.Record.delete_one ~session_ref ~tbl_name:(Meta.name meta)
+          ~key:(M.marshal @@ to_key meta record)
+    end
   end
 
   let ius meta =

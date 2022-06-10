@@ -41,4 +41,4 @@ let load_data db tbl_meta path =
   in
   get_file_data path
   |> Core.Sequence.map ~f:(Tuple.parse ~sep @@ Table.T.Meta.schema tbl_meta)
-  |> Table.T.Crud.bulk_insert db.db_session_ref tbl_meta
+  |> Table.T.Crud.Record.bulk_insert db.db_session_ref tbl_meta
