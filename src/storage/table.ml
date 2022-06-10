@@ -14,9 +14,10 @@ module type Tbl = sig
     type t
     type meta = t
 
-    val make : string -> Schema.t -> t
+    val make : string -> Schema.t -> Index.t list -> t
     val name : t -> string
     val schema : t -> Schema.t
+    val indexes : t -> Index.t list
 
     module Marshaller : Marshaller with type t = meta and type v = record
   end
@@ -54,12 +55,13 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   type record = M.t
 
   module Meta = struct
-    type t = { name : string; schema : Schema.t }
+    type t = { name : string; schema : Schema.t; indexes : Index.t list }
     type meta = t
 
-    let make name schema = { name; schema }
+    let make name schema indexes = { name; schema; indexes }
     let name meta = meta.name
     let schema meta = meta.schema
+    let indexes meta = meta.indexes
 
     module Marshaller : Marshaller with type t = meta and type v = record =
     struct
@@ -70,13 +72,16 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
         [
           Value.VarChar (name meta);
           Value.VarChar (schema meta |> Schema.Marshaller.marshal);
+          Value.VarChar (indexes meta |> List.hd_exn |> Index.Marshaller.marshal);
         ]
 
       let unmarshal record : meta =
-        make
-          (List.hd_exn record |> Value.show)
-          (Schema.Marshaller.unmarshal
-          @@ (List.tl_exn record |> List.hd_exn |> Value.show))
+        match record with
+        | [ name; schema; indexes ] ->
+            make (Value.show name)
+              (Schema.Marshaller.unmarshal @@ Value.show schema)
+              [ Index.Marshaller.unmarshal @@ Value.show indexes ]
+        | _ -> failwith "Cannot unmarshal the table meta"
     end
   end
 
@@ -90,8 +95,11 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
 
   module Crud = struct
     let to_key meta record =
-      let columns = List.map ~f:fst @@ fst @@ Meta.schema meta in
-      let primary_key_columns = snd @@ Meta.schema meta in
+      let columns = List.map ~f:fst @@ Meta.schema meta in
+      let primary_key_columns =
+        List.find_map_exn ~f:(function Index.PrimaryIdx cols -> Some cols)
+        @@ Meta.indexes meta
+      in
       let find_col_idx key_column =
         fst
         @@ List.findi_exn ~f:(fun _ elt -> String.( = ) elt key_column) columns
@@ -110,7 +118,8 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
           ~config:"key_format:u,value_format:u"
 
       let drop session_ref meta =
-        Wired_tiger.Table.drop ~session_ref ~tbl_name:(Meta.name meta) ~config:""
+        Wired_tiger.Table.drop ~session_ref ~tbl_name:(Meta.name meta)
+          ~config:""
     end
 
     module Record = struct
@@ -148,7 +157,7 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   let ius meta =
     List.map
       ~f:(fun (col, ty) -> Iu.make (Meta.name meta) col ty)
-      (fst @@ Meta.schema meta)
+      (Meta.schema meta)
 end
 
 module T = Make (TupleMarshaller)

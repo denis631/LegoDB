@@ -67,15 +67,18 @@ let make_operator_tree db = function
 
 let run_ddl db = function
   | CreateTbl (tbl_name, tbl_elt_lst) ->
-      let schema =
+      let cols_and_indexes =
         List.fold_right
           ~f:(fun tbl_elt acc ->
             match tbl_elt with
             | ColDef (col, ty) -> ((col, ty) :: fst acc, snd acc)
-            | ConstraintDef (PrimaryKey, cols) -> (fst acc, cols))
+            | ConstraintDef (PrimaryKey, cols) ->
+                (fst acc, Index.PrimaryIdx cols :: snd acc))
           ~init:([], []) tbl_elt_lst
       in
-      Database.create_tbl db @@ Table.T.Meta.make tbl_name schema
+      Database.create_tbl db
+      @@ Table.T.Meta.make tbl_name (fst cols_and_indexes)
+           (snd cols_and_indexes)
   | DropTbl tbls ->
       Sequence.of_list tbls
       |> Sequence.map ~f:(Catalog.find_table (Database.catalog db))

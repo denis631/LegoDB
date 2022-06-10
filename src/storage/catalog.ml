@@ -25,7 +25,8 @@ let drop_tbl catalog session_ref tbl_meta =
 let create session_ref =
   let meta =
     Table.T.Meta.make name
-      ([ ("name", VarChar 128); ("schema", VarChar 128) ], [ "name" ])
+      [ ("name", VarChar 128); ("schema", VarChar 128) ]
+      [ Index.PrimaryIdx [ "name" ] ]
   in
   let tbls =
     if not (Table.T.Crud.Tbl.exists session_ref meta) then (

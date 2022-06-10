@@ -9,9 +9,10 @@ module type Tbl = sig
     type t
     type meta = t
 
-    val make : string -> Schema.t -> t
+    val make : string -> Schema.t -> Index.t list -> t
     val name : t -> string
     val schema : t -> Schema.t
+    val indexes : t -> Index.t list
 
     (* Need this marshaller in order to write table metadata into catalog table  *)
     module Marshaller : Marshaller with type t = meta and type v = record

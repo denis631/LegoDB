@@ -8,7 +8,7 @@ let find_column_attr tbl_meta_lst attr_name =
         (String.equal col attr_name)
         (Table.T.Iu.make (Table.T.Meta.name tbl_meta) attr_name ty)
     in
-    List.find_map ~f:filter_col @@ fst @@ Table.T.Meta.schema tbl_meta
+    List.find_map ~f:filter_col @@ Table.T.Meta.schema tbl_meta
   in
   match List.filter_map ~f:find_attr_for_tbl tbl_meta_lst with
   | [ x ] -> x
