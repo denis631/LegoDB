@@ -1,32 +1,51 @@
-type t
-type parent = t
+open Utils
 
-type name = string
+module type WiredTigerMarshaller = Marshaller with type v = Wired_tiger.Record.t
 
-module Iu : sig
-  type t
+module type Tbl = sig
+  type record = Tuple.t
 
-  val make : string -> string -> Value_type.t -> t
+  module Meta : sig
+    type t
+    type meta = t
 
-  val eq : t -> t -> bool
+    val make : string -> Schema.t -> Index.t list -> t
+    val name : t -> string
+    val schema : t -> Schema.t
+    val indexes : t -> Index.t list
 
-  val show : t -> string
+    (* Need this marshaller in order to write table metadata into catalog table  *)
+    module Marshaller : Marshaller with type t = meta and type v = record
+  end
+
+  module Iu : sig
+    type t
+
+    val make : string -> string -> Value_type.t -> t
+    val eq : t -> t -> bool
+    val show : t -> string
+  end
+
+  module Crud : sig
+    module Tbl : sig
+      val exists : Wired_tiger.session_ref -> Meta.t -> bool
+      val create : Wired_tiger.session_ref -> Meta.t -> unit
+      val drop : Wired_tiger.session_ref -> Meta.t -> unit
+    end
+
+    module Record : sig
+      val insert : Wired_tiger.session_ref -> Meta.t -> record -> unit
+
+      val bulk_insert :
+        Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t -> unit
+
+      val read_all : Wired_tiger.session_ref -> Meta.t -> record Core.Sequence.t
+      val delete : Wired_tiger.session_ref -> Meta.t -> record -> unit
+    end
+  end
+
+  val ius : Meta.t -> Iu.t list
 end
 
-module Iter : sig
-  type t
-
-  val make : parent -> t
-
-  val next : t -> Tuple.t option
-end
-
-val name : t -> name
-
-val schema : t -> Schema.t
-
-val create : name -> Schema.t -> t
-
-val insert : t -> Tuple.t -> unit
-
-val ius : t -> Iu.t list
+module Make : functor (M : WiredTigerMarshaller with type t = Tuple.t) -> Tbl
+module T : Tbl

@@ -1,5 +1,8 @@
 (library
  (name storage)
  (libraries
+   wired_tiger
+   utils
 
-   batteries))
+   batteries
+   parmap))

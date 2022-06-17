@@ -1,3 +1,5 @@
+open Utils
+
 type t =
   | Integer of int64
   | Numeric of (int * int) * int64
@@ -9,9 +11,6 @@ type t =
   | Bool of bool
 
 val eq : t -> t -> bool
-
 val parse : Value_type.t -> string -> t
-
 val hash : t -> int64
-
 val show : t -> string

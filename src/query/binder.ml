@@ -1,33 +1,17 @@
-open Frontend.Ast
 open Storage
+open Core
 
-let find_table db tbl_name =
-  try
-    db
-    |> Database.tbls
-    |> List.find (fun tbl ->
-           match tbl_name with TblName x -> Table.name tbl = x )
-  with
-  | _ ->
-      let show_tbl = function Frontend.Ast.TblName s -> s in
-      failwith @@ "Table with name " ^ show_tbl tbl_name ^ " not found"
-
-
-let find_column_attr db attr_name =
-  let find_attr_for_tbl tbl =
+let find_column_attr tbl_meta_lst attr_name =
+  let find_attr_for_tbl tbl_meta =
     let filter_col (col, ty) =
-      if col = attr_name
-      then Some (Table.Iu.make (Table.name tbl) attr_name ty)
-      else None
+      Option.some_if
+        (String.equal col attr_name)
+        (Table.T.Iu.make (Table.T.Meta.name tbl_meta) attr_name ty)
     in
-    match List.filter_map filter_col @@ Table.schema tbl with
-    | [ x ] ->
-        Some x
-    | _ ->
-        None
+    List.find_map ~f:filter_col @@ Table.T.Meta.schema tbl_meta
   in
-  match List.find_map find_attr_for_tbl @@ Database.tbls db with
-  | Some x ->
-      x
-  | None ->
-      failwith @@ "Attribute with name " ^ attr_name ^ " not found"
+  match List.filter_map ~f:find_attr_for_tbl tbl_meta_lst with
+  | [ x ] -> x
+  | _ :: _ ->
+      failwith @@ "There are multiple tables with the attribute " ^ attr_name
+  | [] -> failwith @@ "Attribute with name " ^ attr_name ^ " not found"
