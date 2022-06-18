@@ -1,5 +1,4 @@
 (library
  (name expr)
  (libraries
-   storage
-   batteries))
+   storage))

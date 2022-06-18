@@ -3,6 +3,4 @@
  (libraries
    logical
    physical
-   expr
-
-   batteries))
+   expr))

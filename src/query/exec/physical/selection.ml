@@ -1,4 +1,3 @@
-open BatteriesExceptionless
 open Storage
 open Expr
 open Common

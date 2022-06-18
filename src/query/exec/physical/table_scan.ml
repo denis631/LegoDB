@@ -1,5 +1,4 @@
 open Storage
-open BatteriesExceptionless
 open Common
 
 type tbl_scan = {

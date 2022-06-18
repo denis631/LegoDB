@@ -5,6 +5,4 @@
    storage
    logical
    physical
-   expr
-
-   batteries))
+   expr))
