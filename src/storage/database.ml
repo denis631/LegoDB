@@ -16,6 +16,7 @@ let create () : t =
 
 let db_session_ref db = db.db_session_ref
 let catalog db = db.catalog
+let instance = create ()
 let create_tbl db tbl = Catalog.create_tbl db.catalog db.db_session_ref tbl
 let drop_tbl db tbl = Catalog.drop_tbl db.catalog db.db_session_ref tbl
 

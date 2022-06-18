@@ -2,12 +2,11 @@ open Frontend
 open BatteriesExceptionless
 open Storage
 
-let db = Database.create ()
 let read () = Sql_parser.parse @@ read_line ()
 
 let eval query =
   Printf.printf "%s\n---\n" @@ Ast.show query;
-  Query.Driver.run db query
+  Query.Driver.run Database.instance query
 
 let print = print_endline % Storage.Tuple.show
 

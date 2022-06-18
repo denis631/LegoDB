@@ -95,7 +95,7 @@ let run db ast f =
         make_operator_tree db cmd
         |> tap (Logical.Operators.show %> print_endline)
         |> Optimizer.optimize db
-        |> Physical.Operators.prepare []
+        |> tap Physical.Operators.open_op
       in
       let ctx = () in
       let rec iter () =

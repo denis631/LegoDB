@@ -38,7 +38,9 @@ let make ~left_op ~right_op ~hash_key_ius =
 let has_iu root_has_iu iu join =
   root_has_iu iu join.left_op || root_has_iu iu join.right_op
 
-let prepare _ join = join
+let open_op f join =
+  f join.left_op;
+  f join.right_op
 
 let to_hastbl_key ius (tuple, schema) =
   let required_for_key iu = List.exists (Table.T.Iu.eq iu) ius in
