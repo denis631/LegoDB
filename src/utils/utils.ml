@@ -17,3 +17,5 @@ let tap f x =
   x
 
 let ( %> ) f g x = g (f x)
+
+let curry f x y = f (x,y)

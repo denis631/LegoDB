@@ -1,19 +1,19 @@
 open Utils
-open BatteriesExceptionless
+open Core
 
-type t = Value.t list
+type t = Value.t list [@@deriving hash, compare, equal, sexp]
 type tuple = t
 
-let eq lhs rhs = not @@ List.exists2 (neg2 Value.eq) lhs rhs
-
 let parse schema data ~sep =
-  String.split_on_char sep data |> List.map2 Value.parse (List.map snd schema)
+  String.split ~on:sep data
+  |> List.map2_exn ~f:Value.parse (List.map ~f:snd schema)
 
-let hash t = List.map Value.hash t |> List.reduce Int64.logxor |> Option.get
-let get = List.nth
-let take = List.take
-let extract_values idxs = List.filteri (fun i _ -> List.exists (( = ) i) idxs)
-let show vals = String.concat " | " @@ List.map Value.show vals
+let get = List.nth_exn
+
+let extract_values idxs =
+  List.filteri ~f:(fun i _ -> List.exists ~f:(( = ) i) idxs)
+
+let show t = String.concat ~sep:"," (List.map ~f:Value.show t)
 
 module Marshaller :
   Marshaller with type t = tuple and type v = Wired_tiger.Record.t = struct

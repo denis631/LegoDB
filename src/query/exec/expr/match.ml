@@ -4,7 +4,7 @@ open BatteriesExceptionless
 module Expr = struct
   type bool = And of bool list | Or of bool list | Eq of t * t
   and leaf = Const of Value.t | TableAttr of Table.T.Iu.t
-  and t = BoolExpr of bool | Leaf of leaf
+  and t = Bool of bool | Leaf of leaf
 
   let rec ius expr =
     let rec ius_of_bool = function
@@ -15,7 +15,7 @@ module Expr = struct
     let ius_of_leaf = function Const _ -> [] | TableAttr iu -> [ iu ] in
     match expr with
     | Leaf leaf -> ius_of_leaf leaf
-    | BoolExpr bool -> ius_of_bool bool
+    | Bool bool -> ius_of_bool bool
 
   let rec eval (tuple, schema) expr =
     let rec eval_bool = function
@@ -26,7 +26,7 @@ module Expr = struct
       | Eq (e1, e2) ->
           let lhs = eval (tuple, schema) e1 in
           let rhs = eval (tuple, schema) e2 in
-          Value.eq lhs rhs
+          Value.equal lhs rhs
     in
     let eval_leaf = function
       | Const x -> x
@@ -37,7 +37,7 @@ module Expr = struct
     in
     match expr with
     | Leaf leaf -> eval_leaf leaf
-    | BoolExpr bool -> Value.Bool (eval_bool bool)
+    | Bool bool -> Value.Bool (eval_bool bool)
 
   let rec show expr =
     let rec show_bool = function
@@ -49,7 +49,5 @@ module Expr = struct
       | Const x -> Value.show x
       | TableAttr iu -> Table.T.Iu.show iu
     in
-    match expr with
-    | Leaf leaf -> show_leaf leaf
-    | BoolExpr bool -> show_bool bool
+    match expr with Leaf leaf -> show_leaf leaf | Bool bool -> show_bool bool
 end

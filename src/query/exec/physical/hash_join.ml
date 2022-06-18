@@ -1,15 +1,20 @@
-open Storage
-open BatteriesExceptionless
 open Common
+open Core
+open Storage
+open Utils
 
-module TupleHashtbl = Hashtbl.Make (struct
-  type t = Storage.Tuple.t
+module Key = struct
+  module T = struct
+    type t = Storage.Tuple.t [@@deriving hash, compare, sexp]
+  end
 
-  let equal = Storage.Tuple.eq
-  let hash = Storage.Tuple.hash %> Int64.to_int
-end)
+  include T
+  include Hashable.Make (T)
+end
 
-type hash_tbl = (Storage.Tuple.t * Table.T.Iu.t list) TupleHashtbl.t
+module TupleHashtbl = Key.Table
+
+type hash_tbl = (Storage.Tuple.t * Table.T.Iu.t list) list TupleHashtbl.t
 type state = BuildHashtbl | ProbeRight
 
 type hash_join = {
@@ -29,7 +34,7 @@ let make ~left_op ~right_op ~hash_key_ius =
     {
       left_op;
       right_op;
-      hash_tbl = TupleHashtbl.create 101;
+      hash_tbl = TupleHashtbl.create () ~size:101;
       hash_key_ius;
       buffered_tuples = [];
       state = BuildHashtbl;
@@ -50,17 +55,17 @@ let close_op fs join =
   TupleHashtbl.clear join.hash_tbl
 
 let to_hastbl_key ius (tuple, schema) =
-  let required_for_key iu = List.exists (Table.T.Iu.eq iu) ius in
-  let zip = List.map2 @@ curry identity in
-  zip tuple schema |> List.filter (snd %> required_for_key) |> List.map fst
+  let required_for_key iu = List.exists ~f:(Table.T.Iu.eq iu) ius in
+  let zip = List.map2_exn ~f:(curry Fn.id) in
+  zip tuple schema |> List.filter ~f:(snd %> required_for_key) |> List.map ~f:fst
 
 let build_hashtbl_if_needed root_next ctx join =
   let rec build () =
     let add_key_val result =
       let key = to_hastbl_key (fst join.hash_key_ius) result in
-      TupleHashtbl.add join.hash_tbl key result
+      TupleHashtbl.add_multi join.hash_tbl ~key ~data:result
     in
-    Option.may (add_key_val %> build) @@ root_next ctx join.left_op
+    Option.iter ~f:(add_key_val %> build) @@ root_next ctx join.left_op
   in
   match join.state with
   | BuildHashtbl ->
@@ -69,7 +74,7 @@ let build_hashtbl_if_needed root_next ctx join =
   | ProbeRight -> ()
 
 let rec consume_tuple root_next ctx join =
-  assert (join.state = ProbeRight);
+  assert (phys_equal join.state ProbeRight);
   match join.buffered_tuples with
   | x :: xs ->
       join.buffered_tuples <- xs;
@@ -78,14 +83,15 @@ let rec consume_tuple root_next ctx join =
       let probe_tbl (tuple, schema) =
         let results =
           let key = to_hastbl_key (snd join.hash_key_ius) (tuple, schema) in
-          TupleHashtbl.find_all join.hash_tbl key
-          |> List.map (fun (t, s) -> (tuple @ t, schema @ s))
+          TupleHashtbl.find_multi join.hash_tbl key
+          |> List.map ~f:(fun (t, s) -> (tuple @ t, schema @ s))
         in
         join.buffered_tuples <- results;
         consume_tuple root_next ctx join
       in
-      let open Option.Infix in
-      root_next ctx join.right_op >>= probe_tbl
+      let right_op = join.right_op in
+      let open Option in
+      root_next ctx right_op >>= probe_tbl
 
 let next fs ctx join =
   let root_next = fs.next in

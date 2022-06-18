@@ -5,4 +5,7 @@
    storage
    expr
 
-   batteries))
+   batteries
+   core)
+  (preprocess
+   (pps ppx_sexp_conv ppx_hash ppx_compare)))

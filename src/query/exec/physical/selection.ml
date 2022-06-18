@@ -15,10 +15,8 @@ let next fs ctx selection =
   let rec probe () =
     match fs.next ctx selection.child_op with
     | Some x ->
-        let is_true = Value.eq @@ Value.Bool true in
-        if
-          is_true @@ Match.Expr.eval x
-          @@ Match.Expr.BoolExpr selection.predicate
+        let is_true = Value.equal (Value.Bool true) in
+        if is_true @@ Match.Expr.eval x @@ Match.Expr.Bool selection.predicate
         then Some x
         else probe ()
     | None -> None

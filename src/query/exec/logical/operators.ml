@@ -13,7 +13,7 @@ let rec show = function
   | TableScan tbl -> Table.T.Meta.name tbl
   | Selection (pred, op) ->
       "Selection ("
-      ^ Match.Expr.show (Match.Expr.BoolExpr pred)
+      ^ Match.Expr.show (Match.Expr.Bool pred)
       ^ ", " ^ show op ^ ")"
   | Projection (_, op) -> "Projection (" ^ show op ^ ")"
   | CrossProduct (left, right) -> show left ^ " x " ^ show right

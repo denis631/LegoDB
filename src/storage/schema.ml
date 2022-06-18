@@ -1,29 +1,17 @@
 open Utils
+open Core
 
-type column_name = string
-type column = column_name * Value_type.t
+type column_name = string [@@deriving sexp, show]
+type column = column_name * Value_type.t [@@deriving sexp, show]
 
 (* TODO: should it be an iu instead? *)
-type t = column list
+type t = column list [@@deriving sexp, show]
 type schema = t
-
-let show (t, _) =
-  String.concat "," @@ List.map (fun (c, t) -> c ^ "|" ^ Value_type.show t) t
 
 module Marshaller : Marshaller with type t = schema and type v = string = struct
   type t = schema
   type v = string
 
-  (* TODO: marshal primary key as well *)
-  let marshal t =
-    String.concat "," @@ List.map (fun (c, t) -> c ^ "|" ^ Value_type.show t) t
-
-  (* TODO: unmarshal primary key as well *)
-  let unmarshal s =
-    let column_of_string s =
-      match String.split_on_char '|' s with
-      | c :: t :: _ -> (c, Value_type.of_string t)
-      | _ -> failwith ""
-    in
-    s |> String.split_on_char ',' |> List.map column_of_string
+  let marshal schema = sexp_of_t schema |> Sexp.to_string
+  let unmarshal s = Sexp.of_string s |> t_of_sexp
 end

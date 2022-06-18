@@ -1,5 +1,5 @@
-open BatteriesExceptionless
 open Utils
+open Core
 
 type t =
   | Integer of int64
@@ -9,41 +9,43 @@ type t =
   | StringLiteral of string
   | Timestamp of int64
   | Bool of bool
+[@@deriving hash, compare, sexp]
 
-let eq a b =
+let equal a b =
   match (a, b) with
-  | Integer x, Integer y -> x = y
+  | Integer x, Integer y -> Int64.(x = y)
   | Numeric ((l1, prec1), x), Numeric ((l2, prec2), y) ->
-      l1 = l2 && prec1 = prec2 && x = y
+      l1 = l2 && prec1 = prec2 && Int64.(x = y)
   | Char c1, Char c2 -> String.equal c1 c2
   | VarChar c1, VarChar c2 -> String.equal c1 c2
   | Char c, StringLiteral x -> String.equal x c
   | VarChar c, StringLiteral x -> String.equal x c
-  | Timestamp x, Timestamp y -> x = y
-  | Bool a, Bool b -> a = b
+  | Timestamp x, Timestamp y -> Int64.(x = y)
+  | Bool a, Bool b -> Bool.(a = b)
   | _ -> false
 
+(* TODO: add tests for parsing *)
 let parse (t : Value_type.t) x =
   match t with
   | Integer -> Integer (Int64.of_string x)
   | Numeric (len, precision) ->
-      let trimmed_x = String.trim x in
-      let is_neg = trimmed_x.[0] = '-' in
+      let trimmed_x = x in
+      let is_neg = Char.equal '-' @@ String.get x 0 in
       let chars =
         let char_list = String.to_list trimmed_x in
-        match List.first char_list with
-        | '+' | '-' -> Option.get @@ List.tl char_list
+        match List.hd_exn char_list with
+        | '+' | '-' -> List.tl_exn char_list
         | _ -> char_list
       in
       let build_val (digits_seen, digits_seen_fraction, is_fraction, result) x =
-        if x = '.' then
+        if Char.equal x '.' then
           if is_fraction then
             failwith "invalid number format: already in fraction"
           else (digits_seen, digits_seen_fraction, true, result)
         else
-          let zero = Char.code '0' in
-          let nine = Char.code '9' in
-          let cur = Char.code x in
+          let zero = Char.to_int '0' in
+          let nine = Char.to_int '9' in
+          let cur = Char.to_int x in
           if cur >= zero && cur <= nine then
             if is_fraction then
               ( digits_seen,
@@ -60,40 +62,22 @@ let parse (t : Value_type.t) x =
               "invalid number format: invalid character in numeric string"
       in
       let digits_seen, digits_seen_fraction, _, numeric_val =
-        List.fold_left build_val (0, 0, false, 0) chars
+        List.fold_left ~f:build_val ~init:(0, 0, false, 0) chars
       in
       if digits_seen > len || digits_seen_fraction > precision then
         failwith "invalid number format: loosing precision";
       let int64_val = Int64.of_int numeric_val in
       Numeric
         ((len, precision), if is_neg then Int64.neg int64_val else int64_val)
-  (* TODO: add tests for parsing *)
   | Char _ -> Char x
   | VarChar _ -> VarChar x
   | Timestamp -> Timestamp (Int64.of_string x)
-
-let hash_int x =
-  x |> Int64.logxor 88172645463325252L |> fun x ->
-  Int64.logxor x @@ Int64.shift_left x 13 |> fun x ->
-  Int64.logxor x @@ Int64.shift_right x 7 |> fun x ->
-  Int64.logxor x @@ Int64.shift_left x 17
-
-let hash = function
-  | Integer x -> hash_int x
-  | Numeric ((_, _), x) -> hash_int x
-  | Char _ -> Int64.of_int 1
-  | VarChar _ -> Int64.of_int 1
-  | StringLiteral _ -> Int64.of_int 1
-  | Timestamp x -> hash_int x
-  | Bool x -> Int64.of_int @@ Bool.to_int x
 
 let show = function
   | Integer x -> Int64.to_string x
   | Numeric ((_, precision), x) ->
       let tmp = Int64.pow (Int64.of_int 10) (Int64.of_int precision) in
-      Int64.to_string (Int64.div x tmp)
-      ^ "."
-      ^ Int64.to_string (Int64.modulo x tmp)
+      Int64.to_string Int64.(x / tmp) ^ "." ^ Int64.to_string Int64.(x % tmp)
   | Char x -> x
   | VarChar x -> x
   | StringLiteral x -> x
