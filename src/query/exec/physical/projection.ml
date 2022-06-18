@@ -7,11 +7,11 @@ type op += Projection of projection
 
 let make ~attributes ~child_op = Projection { attributes; child_op }
 let has_iu root_has_iu iu projection = root_has_iu iu projection.child_op
-let open_op f projection = f projection.child_op
-let close_op f projection = f projection.child_op
+let open_op fs projection = fs.open_op projection.child_op
+let close_op fs projection = fs.close_op projection.child_op
 
-let next root_next ctx projection =
-  match root_next ctx projection.child_op with
+let next fs ctx projection =
+  match fs.next ctx projection.child_op with
   | Some (tuple, schema) ->
       let unzip coll =
         List.fold_right coll

@@ -38,14 +38,14 @@ let make ~left_op ~right_op ~hash_key_ius =
 let has_iu root_has_iu iu join =
   root_has_iu iu join.left_op || root_has_iu iu join.right_op
 
-let open_op f join =
-  f join.left_op;
-  f join.right_op
+let open_op fs join =
+  fs.open_op join.left_op;
+  fs.open_op join.right_op
 
-let close_op f join =
+let close_op fs join =
   (* TODO: after refactoring, the left will be closed in open_op *)
-  f join.left_op;
-  f join.right_op;
+  fs.close_op join.left_op;
+  fs.close_op join.right_op;
   (* Clear the contents of the hash table as we don't need it anymore *)
   TupleHashtbl.clear join.hash_tbl
 
@@ -87,6 +87,7 @@ let rec consume_tuple root_next ctx join =
       let open Option.Infix in
       root_next ctx join.right_op >>= probe_tbl
 
-let next root_next ctx join =
+let next fs ctx join =
+  let root_next = fs.next in
   build_hashtbl_if_needed root_next ctx join;
   consume_tuple root_next ctx join

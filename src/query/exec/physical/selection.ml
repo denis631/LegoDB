@@ -8,12 +8,12 @@ type op += Selection of selection
 
 let make ~predicate ~child_op = Selection { predicate; child_op }
 let has_iu root_has_iu iu selection = root_has_iu iu selection.child_op
-let open_op f selection = f selection.child_op
-let close_op f selection = f selection.child_op
+let open_op fs selection = fs.open_op selection.child_op
+let close_op fs selection = fs.close_op selection.child_op
 
-let next root_next ctx selection =
+let next fs ctx selection =
   let rec probe () =
-    match root_next ctx selection.child_op with
+    match fs.next ctx selection.child_op with
     | Some x ->
         let is_true = Value.eq @@ Value.Bool true in
         if
