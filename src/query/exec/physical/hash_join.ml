@@ -42,6 +42,13 @@ let open_op f join =
   f join.left_op;
   f join.right_op
 
+let close_op f join =
+  (* TODO: after refactoring, the left will be closed in open_op *)
+  f join.left_op;
+  f join.right_op;
+  (* Clear the contents of the hash table as we don't need it anymore *)
+  TupleHashtbl.clear join.hash_tbl
+
 let to_hastbl_key ius (tuple, schema) =
   let required_for_key iu = List.exists (Table.T.Iu.eq iu) ius in
   let zip = List.map2 @@ curry identity in

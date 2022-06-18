@@ -9,6 +9,7 @@ type op += Selection of selection
 let make ~predicate ~child_op = Selection { predicate; child_op }
 let has_iu root_has_iu iu selection = root_has_iu iu selection.child_op
 let open_op f selection = f selection.child_op
+let close_op f selection = f selection.child_op
 
 let next root_next ctx selection =
   let rec probe () =

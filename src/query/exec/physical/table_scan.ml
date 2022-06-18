@@ -20,6 +20,9 @@ let open_op tbl_scan =
          (Database.db_session_ref Database.instance)
          tbl_scan.meta)
 
+(* Nothing has to be done, as cursor cleanup is done in the WiredTiger Sequence itself *)
+let close_op _ = ()
+
 let next _ tbl_scan =
   match Core.Sequence.next @@ Option.get tbl_scan.seq with
   | Some (el, seq) ->

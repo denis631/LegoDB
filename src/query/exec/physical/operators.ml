@@ -16,6 +16,13 @@ let rec open_op = function
   | Hash_join.HashJoin join -> Hash_join.open_op open_op join
   | _ -> failwith "unhandled case"
 
+let rec close_op = function
+  | Table_scan.TableScan tbl_scan -> Table_scan.close_op tbl_scan
+  | Selection.Selection selection -> Selection.close_op close_op selection
+  | Projection.Projection projection -> Projection.close_op close_op projection
+  | Hash_join.HashJoin join -> Hash_join.close_op close_op join
+  | _ -> failwith "unhandled case"
+
 let rec next ctx = function
   | Table_scan.TableScan tbl_scan -> Table_scan.next ctx tbl_scan
   | Selection.Selection selection -> Selection.next next ctx selection

@@ -91,21 +91,19 @@ let run db ast f =
       let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in
       Database.load_data db tbl_meta path
   | DML cmd ->
-      let tree =
-        make_operator_tree db cmd
-        |> tap (Logical.Operators.show %> print_endline)
-        |> Optimizer.optimize db
-        |> tap Physical.Operators.open_op
+      let seq_of_tree tree =
+        let next ctx =
+          match Physical.Operators.next ctx tree with
+          | Some x -> Some (x, ctx)
+          | None -> Physical.Operators.close_op tree; None
+        in
+        Sequence.unfold ~init:() ~f:next
       in
-      let ctx = () in
-      let rec iter () =
-        match Physical.Operators.next ctx tree with
-        | Some (t, _) ->
-            f t;
-            iter ()
-        | None -> ()
-      in
-      iter ()
+      make_operator_tree db cmd
+      |> tap (Logical.Operators.show %> print_endline)
+      |> Optimizer.optimize db
+      |> tap Physical.Operators.open_op
+      |> seq_of_tree |> Sequence.map ~f:fst |> Sequence.iter ~f
 
 let benchmark f =
   let t = Stdlib.Sys.time () in
