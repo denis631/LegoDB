@@ -5,7 +5,7 @@ open Utils
 let read () = Sql_parser.parse @@ read_line ()
 
 let eval query =
-  Printf.printf "%s\n---\n" @@ Ast.show query;
+  Printf.printf "%s\n---\n" @@ Ast.show_sql_expr query;
   Query.Driver.run Database.instance query
 
 let print = Storage.Tuple.show %> print_endline

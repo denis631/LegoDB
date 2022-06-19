@@ -19,27 +19,3 @@ let catalog db = db.catalog
 let instance = create ()
 let create_tbl db tbl = Catalog.create_tbl db.catalog db.db_session_ref tbl
 let drop_tbl db tbl = Catalog.drop_tbl db.catalog db.db_session_ref tbl
-
-let load_data db tbl_meta path =
-  let get_file_data path =
-    let read chan =
-      try Some (input_line chan, chan)
-      with End_of_file ->
-        (* If there is no more data, then close the file *)
-        close_in chan;
-        None
-    in
-    Core.Sequence.unfold ~init:(open_in path) ~f:read
-  in
-  let sep =
-    match String.sub path (String.length path - 3) 3 with
-    | "tbl" -> '|'
-    | "csv" -> ';'
-    | _ ->
-        failwith
-          "Unknown format. Don't know what is the separtor for it in order to \
-           parse"
-  in
-  get_file_data path
-  |> Core.Sequence.map ~f:(Tuple.parse ~sep @@ Table.T.Meta.schema tbl_meta)
-  |> Table.T.Crud.Record.bulk_insert db.db_session_ref tbl_meta

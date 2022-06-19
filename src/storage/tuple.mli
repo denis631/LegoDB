@@ -4,7 +4,7 @@ open Utils
 type t = Value.t list [@@deriving hash, compare, equal, sexp]
 type tuple = t
 
-val parse : Schema.t -> string -> sep:char -> t
+val parse : Schema.t -> sep:char -> string -> t
 val get : t -> int -> Value.t
 val extract_values : int list -> t -> t
 val show : t -> string

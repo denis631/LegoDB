@@ -35,8 +35,8 @@ open Utils
 
 /* TODO: extend the supported select grammar https://github.com/mysql/mysql-workbench/blob/8.0/library/parsers/grammars/MySQLParser.g4#L1063 */
 query:
-  | e = dml; { DML (e) }
-  | e = ddl; { DDL (e) }
+  | e = dml; { e }
+  | e = ddl; { e }
 ;
 
 // --- DDL ---------------------------------------------------------------------------------------

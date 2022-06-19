@@ -63,9 +63,7 @@ let make_operator_tree db = function
         |> Sequence.fold ~f:mk_select ~init:tbl_scan
       in
       Logical.Operators.Projection (attrs, select_ops)
-  | _ -> failwith "Invalid code path"
-
-let run_ddl db = function
+  | Copy (tbl_name, path) -> Logical.Operators.Copy (tbl_name, path)
   | CreateTbl (tbl_name, tbl_elt_lst) ->
       let cols_and_indexes =
         List.fold_right
@@ -76,34 +74,30 @@ let run_ddl db = function
                 (fst acc, Index.PrimaryIdx cols :: snd acc))
           ~init:([], []) tbl_elt_lst
       in
-      Database.create_tbl db
-      @@ Table.T.Meta.make tbl_name (fst cols_and_indexes)
-           (snd cols_and_indexes)
+      let tbl_meta =
+        Table.T.Meta.make tbl_name (fst cols_and_indexes) (snd cols_and_indexes)
+      in
+      Logical.Operators.CreateTbl tbl_meta
   | DropTbl tbls ->
-      Sequence.of_list tbls
-      |> Sequence.map ~f:(Catalog.find_table (Database.catalog db))
-      |> Sequence.iter ~f:(Database.drop_tbl db)
+      Logical.Operators.DropTbl
+        (List.map ~f:(Catalog.find_table (Database.catalog db)) tbls)
 
 let run db ast f =
-  match ast with
-  | DDL cmd -> run_ddl db cmd
-  | DML (Copy (tbl_name, path)) ->
-      let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in
-      Database.load_data db tbl_meta path
-  | DML cmd ->
-      let seq_of_tree tree =
-        let next ctx =
-          match Physical.Operators.next ctx tree with
-          | Some x -> Some (x, ctx)
-          | None -> Physical.Operators.close_op tree; None
-        in
-        Sequence.unfold ~init:() ~f:next
-      in
-      make_operator_tree db cmd
-      |> tap (Logical.Operators.show %> print_endline)
-      |> Optimizer.optimize db
-      |> tap Physical.Operators.open_op
-      |> seq_of_tree |> Sequence.map ~f:fst |> Sequence.iter ~f
+  let seq_of_tree tree =
+    let next ctx =
+      match Physical.Operators.next ctx tree with
+      | Some x -> Some (x, ctx)
+      | None ->
+          Physical.Operators.close_op tree;
+          None
+    in
+    Sequence.unfold ~init:() ~f:next
+  in
+  make_operator_tree db ast
+  |> tap (Logical.Operators.show %> print_endline)
+  |> Optimizer.optimize db
+  |> tap Physical.Operators.open_op
+  |> seq_of_tree |> Sequence.map ~f:fst |> Sequence.iter ~f
 
 let benchmark f =
   let t = Stdlib.Sys.time () in

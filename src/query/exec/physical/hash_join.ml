@@ -22,8 +22,7 @@ module Key = struct
 
   let of_tuple_schema ius (tuple, schema) =
     let required_for_key iu = List.exists ~f:(Storage.Table.T.Iu.eq iu) ius in
-    let zip = List.map2_exn ~f:(curry Fn.id) in
-    zip tuple schema |> Sequence.of_list
+    List.zip_exn tuple schema |> Sequence.of_list
     |> Sequence.filter ~f:(snd %> required_for_key)
     |> Sequence.map ~f:fst |> Sequence.to_list
 end

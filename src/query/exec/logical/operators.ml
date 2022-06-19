@@ -8,7 +8,11 @@ type t =
   | Selection of Match.Expr.bool * t
   | Projection of proj_attrs * t
   | CrossProduct of t * t
+  | Copy of string * string
+  | CreateTbl of Table.T.Meta.t
+  | DropTbl of Table.T.Meta.t list
 
+(* TODO: remove this for @deriving  *)
 let rec show = function
   | TableScan tbl -> Table.T.Meta.name tbl
   | Selection (pred, op) ->
@@ -17,3 +21,6 @@ let rec show = function
       ^ ", " ^ show op ^ ")"
   | Projection (_, op) -> "Projection (" ^ show op ^ ")"
   | CrossProduct (left, right) -> show left ^ " x " ^ show right
+  | Copy (_, _) -> ""
+  | CreateTbl _ -> ""
+  | DropTbl _ -> ""

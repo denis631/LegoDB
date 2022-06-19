@@ -1,31 +1,24 @@
 open Utils
 
 (* TODO: support aliasing and dot notation *)
-type attr = AttrName of string | Star
-
-(* TODO: support aliasing and dot notation *)
-type tbl_name = string
-type col_name = string
-type path = string
-type const = Int of int | Str of string
-type pred = EqConst of attr * const | EqAttr of attr * attr
-type key_type = PrimaryKey
+type tbl_name = string [@@deriving show]
+type col_name = string [@@deriving show]
+type path = string [@@deriving show]
+type attr = AttrName of string | Star [@@deriving show]
+type const = Int of int | Str of string [@@deriving show]
+type pred = EqConst of attr * const | EqAttr of attr * attr [@@deriving show]
+type key_type = PrimaryKey [@@deriving show]
 
 type tbl_elt =
   | ColDef of string * Value_type.t
   | ConstraintDef of key_type * col_name list
+[@@deriving show]
 
-type ddl_expr =
+type sql_expr =
+  (* DDL *)
   | CreateTbl of tbl_name * tbl_elt list
   | DropTbl of tbl_name list
-
-type dml_expr =
+  (* DML *)
   | Select of attr list * tbl_name list * pred list option
   | Copy of tbl_name * path
-
-type sql_expr = DML of dml_expr | DDL of ddl_expr
-
-val show_attr : attr -> string
-val show_const : const -> string
-val show_pred : pred -> string
-val show : sql_expr -> string
+[@@deriving show]

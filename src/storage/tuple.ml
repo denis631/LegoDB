@@ -4,7 +4,7 @@ open Core
 type t = Value.t list [@@deriving hash, compare, equal, sexp]
 type tuple = t
 
-let parse schema data ~sep =
+let parse schema ~sep data  =
   String.split ~on:sep data
   |> List.map2_exn ~f:Value.parse (List.map ~f:snd schema)
 

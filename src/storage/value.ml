@@ -6,6 +6,7 @@ type t =
   | Numeric of (int * int) * int64
   | Char of string
   | VarChar of string
+  (* TODO: this is not really needed if analysis is done correctly -> Can create a VarChar or Char *)
   | StringLiteral of string
   | Timestamp of int64
   | Bool of bool

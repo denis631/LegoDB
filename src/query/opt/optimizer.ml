@@ -71,3 +71,12 @@ let rec optimize db = function
   | Logical.Operators.CrossProduct (_, _) ->
       failwith
         "TODO: no real cross products are allowed to be produced, only joins"
+  | Logical.Operators.Copy (tbl_name, path) ->
+      let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in
+      let row_parser =
+        Physical.Parse_row_file.make ~path
+          ~schema:(Table.T.Meta.schema tbl_meta)
+      in
+      Physical.Bulk_insert.make ~child_op:row_parser ~meta:tbl_meta
+  | Logical.Operators.CreateTbl tbl_meta -> Physical.Create_tbl.make ~tbl_meta
+  | Logical.Operators.DropTbl tbl_metas -> Physical.Drop_tbl.make ~tbl_metas
