@@ -11,7 +11,7 @@ module type Tbl = sig
   type record = tuple
 
   module Meta : sig
-    type t
+    type t [@@deriving show]
     type meta = t
 
     val make : string -> Schema.t -> Index.t list -> t
@@ -23,11 +23,10 @@ module type Tbl = sig
   end
 
   module Iu : sig
-    type t
+    type t [@@deriving show]
 
     val make : string -> string -> Value_type.t -> t
     val eq : t -> t -> bool
-    val show : t -> string
   end
 
   module Crud : sig
@@ -56,6 +55,8 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
 
   module Meta = struct
     type t = { name : string; schema : Schema.t; indexes : Index.t list }
+    [@@deriving show]
+
     type meta = t
 
     let make name schema indexes = { name; schema; indexes }
@@ -86,11 +87,10 @@ module Make (M : WiredTigerMarshaller with type t = tuple) = struct
   end
 
   module Iu = struct
-    type t = string * Schema.column_name * Value_type.t
+    type t = string * Schema.column_name * Value_type.t [@@deriving show]
 
     let make name col t = (name, col, t)
     let eq = Stdlib.( = )
-    let show (_, col, ty) = "col: " ^ col ^ " | type: " ^ Value_type.show ty
   end
 
   module Crud = struct

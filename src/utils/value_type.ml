@@ -6,7 +6,7 @@ type t =
   | Char of int
   | VarChar of int
   | Timestamp
-[@@deriving sexp, show]
+  [@@deriving sexp, show { with_path = false }]
 
 let of_string = function
   | "integer" -> Integer

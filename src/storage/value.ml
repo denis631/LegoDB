@@ -10,7 +10,7 @@ type t =
   | StringLiteral of string
   | Timestamp of int64
   | Bool of bool
-[@@deriving hash, compare, sexp]
+[@@deriving hash, compare, sexp, show]
 
 let equal a b =
   match (a, b) with

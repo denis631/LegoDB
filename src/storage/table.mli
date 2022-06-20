@@ -6,7 +6,7 @@ module type Tbl = sig
   type record = Tuple.t
 
   module Meta : sig
-    type t
+    type t [@@deriving show]
     type meta = t
 
     val make : string -> Schema.t -> Index.t list -> t
@@ -19,11 +19,10 @@ module type Tbl = sig
   end
 
   module Iu : sig
-    type t
+    type t [@@deriving show]
 
     val make : string -> string -> Value_type.t -> t
     val eq : t -> t -> bool
-    val show : t -> string
   end
 
   module Crud : sig

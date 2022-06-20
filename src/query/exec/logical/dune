@@ -2,4 +2,6 @@
  (name logical)
  (libraries
    storage
-   expr))
+   expr)
+ (preprocess
+  (pps ppx_deriving.show)))

@@ -1,4 +1,6 @@
 (library
  (name expr)
  (libraries
-   storage))
+   storage)
+ (preprocess
+  (pps ppx_deriving.show)))

@@ -9,7 +9,6 @@ type t =
   | StringLiteral of string
   | Timestamp of int64
   | Bool of bool
-[@@deriving hash, compare, equal, sexp]
+[@@deriving hash, compare, equal, sexp, show]
 
 val parse : Value_type.t -> string -> t
-val show : t -> string

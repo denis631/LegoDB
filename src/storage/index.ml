@@ -1,6 +1,8 @@
 open Utils
 
 type t = PrimaryIdx of Schema.column_name list
+[@@deriving show { with_path = false }]
+
 type index = t
 
 module Marshaller : Marshaller with type t = index and type v = string = struct

@@ -2,7 +2,7 @@ open Storage
 open Expr
 open Common
 
-type selection = { predicate : Match.Expr.bool; child_op : op }
+type selection = { predicate : Match.Expr.boolean; child_op : op }
 type op += Selection of selection
 
 let make ~predicate ~child_op = Selection { predicate; child_op }
