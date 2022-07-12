@@ -1,5 +1,12 @@
 type exec_ctx = unit
 
+let rec output_schema = function
+  | Table_scan.TableScan tbl_scan -> tbl_scan.meta.schema
+  | Selection.Selection selection -> output_schema selection.child_op
+  | Projection.Projection projection -> projection.schema
+  | Hash_join.HashJoin _ -> failwith "to implement"
+  | _ -> []
+
 (* NOTE: what about this function? *)
 let rec has_iu iu = function
   | Table_scan.TableScan tbl_scan -> Table_scan.has_iu has_iu iu tbl_scan
@@ -41,4 +48,4 @@ and next ctx = function
   | Drop_tbl.DropTbl dropper -> Drop_tbl.next funcs ctx dropper
   | _ -> failwith "unhandled case"
 
-and funcs = { open_op; close_op; next }
+and funcs = { output_schema; open_op; close_op; next }

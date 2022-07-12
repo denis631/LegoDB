@@ -1,5 +1,4 @@
 type t = {
-  (* TODO: add catalog intead of list of tables *)
   mutable catalog : Catalog.t;
   db_session_ref : Wired_tiger.session_ref;
 }

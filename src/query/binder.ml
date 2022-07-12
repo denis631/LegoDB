@@ -2,13 +2,9 @@ open Storage
 open Core
 
 let find_column_attr tbl_meta_lst attr_name =
-  let find_attr_for_tbl tbl_meta =
-    let filter_col (col, ty) =
-      Option.some_if
-        (String.equal col attr_name)
-        (Table.T.Iu.make (Table.T.Meta.name tbl_meta) attr_name ty)
-    in
-    List.find_map ~f:filter_col @@ Table.T.Meta.schema tbl_meta
+  let find_attr_for_tbl (tbl_meta : Table.Meta.t) =
+    let filter_col (iu : Schema.Iu.t) = String.equal iu.column attr_name in
+    List.find ~f:filter_col tbl_meta.schema
   in
   match List.filter_map ~f:find_attr_for_tbl tbl_meta_lst with
   | [ x ] -> x

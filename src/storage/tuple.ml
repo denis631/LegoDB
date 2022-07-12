@@ -1,25 +1,33 @@
-open Utils
 open Core
+open Utils
 
-type t = Value.t list [@@deriving hash, compare, equal, sexp]
-type tuple = t
+type t = Tuple_buffer.t
 
-let parse schema ~sep data  =
-  String.split ~on:sep data
-  |> List.map2_exn ~f:Value.parse (List.map ~f:snd schema)
+module Iterator = Tuple_buffer.Iterator
 
-let get = List.nth_exn
+let parse schema ~sep buffer data =
+  let types = List.map ~f:(fun (iu : Schema.Iu.t) -> iu.ty) schema in
+  let iterator = Iterator.make buffer in
+  let parse (ty : Value_type.t) str =
+    let buffer_write = Iterator.write iterator in
+    Value.parse_and_write ty str buffer_write
+  in
+  String.split ~on:sep data |> List.iter2_exn ~f:parse types
 
-let extract_values idxs =
-  List.filteri ~f:(fun i _ -> List.exists ~f:(( = ) i) idxs)
+let copy_tuple src_buffer src_ius dst_buffer dst_ius =
+  let dst_iter = Iterator.make dst_buffer in
+  let copy_at_offset offset l =
+    let src_iter = Iterator.make src_buffer in
+    Iterator.advance_by_offset src_iter offset;
+    Iterator.copy dst_iter src_iter l
+  in
+  let ls =
+    List.map ~f:(fun (iu : Schema.Iu.t) -> Value_type.sizeof iu.ty) dst_ius
+  in
+  let offsets = List.map ~f:(Schema.offset_to_attr src_ius) dst_ius in
+  List.iter2_exn offsets ls ~f:copy_at_offset
 
-let show t = String.concat ~sep:"," (List.map ~f:Value.show t)
-
-module Marshaller :
-  Marshaller with type t = tuple and type v = Wired_tiger.Record.t = struct
-  type t = tuple
-  type v = Wired_tiger.Record.t
-
-  let marshal obj = Bytearray.marshal obj []
-  let unmarshal bytearray = Bytearray.unmarshal bytearray 0
-end
+let show t schema =
+  let iterator = Iterator.make t in
+  List.map ~f:(fun (iu : Schema.Iu.t) -> Iterator.show iterator iu.ty) schema
+  |> String.concat ~sep:","

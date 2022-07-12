@@ -2,7 +2,7 @@ open Common
 open Core
 open Storage
 
-type drop_tbl = { metas : Table.T.Meta.t list }
+type drop_tbl = { metas : Table.Meta.t list }
 type op += DropTbl of drop_tbl
 
 let make ~tbl_metas = DropTbl { metas = tbl_metas }

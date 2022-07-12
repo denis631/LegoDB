@@ -1,7 +1,7 @@
 open Common
 open Storage
 
-type create_tbl = { meta : Table.T.Meta.t }
+type create_tbl = { meta : Table.Meta.t }
 type op += CreateTbl of create_tbl
 
 let make ~tbl_meta = CreateTbl { meta = tbl_meta }

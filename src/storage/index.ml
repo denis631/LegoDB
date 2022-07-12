@@ -1,6 +1,6 @@
 open Utils
 
-type t = PrimaryIdx of Schema.column_name list
+type t = PrimaryIdx of string list
 [@@deriving show { with_path = false }]
 
 type index = t

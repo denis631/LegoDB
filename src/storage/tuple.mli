@@ -1,13 +1,7 @@
-open Utils
+type t = Tuple_buffer.t
 
-(* TODO: make private? *)
-type t = Value.t list [@@deriving hash, compare, equal, sexp]
-type tuple = t
+val parse : Schema.t -> sep:char -> t -> string -> unit
 
-val parse : Schema.t -> sep:char -> string -> t
-val get : t -> int -> Value.t
-val extract_values : int list -> t -> t
-val show : t -> string
+val copy_tuple : t -> Schema.t -> Tuple_buffer.t -> Schema.t -> unit
 
-module Marshaller :
-  Marshaller with type t = tuple and type v = Wired_tiger.Record.t
+val show : t -> Schema.t -> string

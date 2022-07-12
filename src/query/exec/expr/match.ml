@@ -1,12 +1,13 @@
 open Core
 open Storage
-open Utils
 
+(* TODO: call the Module Expr, intead of Match, as the same tree will be used for other purposes *)
+(* TODO: refactor the expression type, should be able to evaluate to any primitive type *)
 module Expr = struct
   type boolean = And of boolean list | Or of boolean list | Eq of t * t
-  [@@deriving show]
+  [@@deriving show { with_path = false }]
 
-  and leaf = Const of Value.t | TableAttr of Table.T.Iu.t [@@deriving show]
+  and leaf = Const of Value.t | TableAttr of Schema.Iu.t [@@deriving show]
   and t = Bool of boolean | Leaf of leaf [@@deriving show]
 
   let rec ius expr =
@@ -19,28 +20,4 @@ module Expr = struct
     match expr with
     | Leaf leaf -> ius_of_leaf leaf
     | Bool bool -> ius_of_bool bool
-
-  let rec eval (tuple, schema) expr =
-    let rec eval_bool = function
-      | And expr_lst ->
-          Sequence.of_list expr_lst |> Sequence.map ~f:eval_bool
-          |> Sequence.fold ~init:true ~f:( && )
-      | Or expr_lst ->
-          Sequence.of_list expr_lst |> Sequence.map ~f:eval_bool
-          |> Sequence.fold ~init:true ~f:( || )
-      | Eq (e1, e2) ->
-          let lhs = eval (tuple, schema) e1 in
-          let rhs = eval (tuple, schema) e2 in
-          Value.equal lhs rhs
-    in
-    let eval_leaf = function
-      | Const x -> x
-      | TableAttr iu ->
-          List.zip_exn tuple schema
-          |> List.find_exn ~f:(snd %> Table.T.Iu.eq iu)
-          |> fst
-    in
-    match expr with
-    | Leaf leaf -> eval_leaf leaf
-    | Bool bool -> Value.Bool (eval_bool bool)
 end

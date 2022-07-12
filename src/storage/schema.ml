@@ -1,12 +1,21 @@
 open Utils
 open Core
 
-type column_name = string [@@deriving sexp, show]
-type column = column_name * Value_type.t [@@deriving sexp, show]
+module Iu = struct
+  type t = { table : string; column : string; ty : Value_type.t }
+  [@@deriving compare, equal, hash, make, sexp, show { with_path = false }]
+end
 
-(* TODO: should it be an iu instead? *)
-type t = column list [@@deriving sexp, show]
+type t = Iu.t list [@@deriving compare, hash, equal, sexp, show]
 type schema = t
+
+let offset_to_attr schema iu =
+  let rec calculate_offset acc = function
+    | x :: _ when Iu.equal x iu -> acc
+    | x :: xs -> calculate_offset (acc + Value_type.sizeof x.ty) xs
+    | _ -> failwith ""
+  in
+  calculate_offset 0 schema
 
 module Marshaller : Marshaller with type t = schema and type v = string = struct
   type t = schema

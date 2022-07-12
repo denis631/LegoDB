@@ -6,12 +6,11 @@ type t =
   | Char of int
   | VarChar of int
   | Timestamp
-  [@@deriving sexp, show { with_path = false }]
+[@@deriving compare, equal, hash, sexp, show { with_path = false }]
 
-let of_string = function
-  | "integer" -> Integer
-  | "numeric" -> Numeric (10, 10)
-  | "char" -> Char 10
-  | "varchar" -> VarChar 10
-  | "timestamp" -> Timestamp
-  | _ -> failwith "invalid string"
+let sizeof = function
+  | Integer -> 8 (* int64_t *)
+  | Numeric _ -> 16 (* int64_t, int64_t *)
+  | Char k -> k
+  | VarChar k -> k
+  | Timestamp -> 8 (* int64_t *)

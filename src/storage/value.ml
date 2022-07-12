@@ -6,11 +6,18 @@ type t =
   | Numeric of (int * int) * int64
   | Char of string
   | VarChar of string
-  (* TODO: this is not really needed if analysis is done correctly -> Can create a VarChar or Char *)
   | StringLiteral of string
   | Timestamp of int64
   | Bool of bool
 [@@deriving hash, compare, sexp, show]
+
+module C = struct
+  type t = Int of int64 | String of string
+
+  let ty = function
+    | Int _ -> Value_type.Integer
+    | String s -> Value_type.VarChar (String.length s)
+end
 
 let equal a b =
   match (a, b) with
@@ -25,10 +32,9 @@ let equal a b =
   | Bool a, Bool b -> Bool.(a = b)
   | _ -> false
 
-(* TODO: add tests for parsing *)
-let parse (t : Value_type.t) x =
-  match t with
-  | Integer -> Integer (Int64.of_string x)
+let parse_and_write (ty : Value_type.t) x write =
+  match ty with
+  | Integer -> write (C.Int (Int64.of_string x))
   | Numeric (len, precision) ->
       let trimmed_x = x in
       let is_neg = Char.equal '-' @@ String.get x 0 in
@@ -67,20 +73,21 @@ let parse (t : Value_type.t) x =
       in
       if digits_seen > len || digits_seen_fraction > precision then
         failwith "invalid number format: loosing precision";
-      let int64_val = Int64.of_int numeric_val in
-      Numeric
-        ((len, precision), if is_neg then Int64.neg int64_val else int64_val)
-  | Char _ -> Char x
-  | VarChar _ -> VarChar x
-  | Timestamp -> Timestamp (Int64.of_string x)
+      let int64_val =
+        let x = Int64.of_int numeric_val in
+        if is_neg then Int64.neg x else x
+      in
+      write (C.Int int64_val)
+  | Char k ->
+      assert (Int.equal k @@ String.length x);
+      write (C.String x)
+  | VarChar k ->
+      write (C.String x);
 
-let show = function
-  | Integer x -> Int64.to_string x
-  | Numeric ((_, precision), x) ->
-      let tmp = Int64.pow (Int64.of_int 10) (Int64.of_int precision) in
-      Int64.to_string Int64.(x / tmp) ^ "." ^ Int64.to_string Int64.(x % tmp)
-  | Char x -> x
-  | VarChar x -> x
-  | StringLiteral x -> x
-  | Timestamp x -> Int64.to_string x
-  | Bool x -> string_of_bool x
+      (* append nulls if needed *)
+      let l = String.length x in
+      let nulls_length = k - l in
+      if Int.(nulls_length > 0) then
+        let str = String.make nulls_length @@ Char.of_int_exn 0 in
+        write (C.String str)
+  | Timestamp -> write (C.Int (Int64.of_string x))
