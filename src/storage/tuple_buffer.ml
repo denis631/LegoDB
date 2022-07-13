@@ -8,23 +8,30 @@ type buffer = t
 let make = Bytearray.create
 let length = Bytearray.length
 
+let length_from_schema schema =
+  List.map ~f:(fun (iu : Schema.Iu.t) -> Value_type.sizeof iu.ty) schema
+  |> List.reduce ~f:Int.( + ) |> Option.value ~default:0
+
 let clone t =
   let out = make @@ length t in
   Bigarray.Array1.blit t out;
   out
 
-let size_from_schema schema =
-  List.map ~f:(fun (iu : Schema.Iu.t) -> Value_type.sizeof iu.ty) schema
-  |> List.reduce ~f:Int.( + ) |> Option.value ~default:0
-
-let get_ptr = bigarray_start array1
+let to_ptr = bigarray_start array1
+let of_ptr ptr l = bigarray_of_ptr array1 l Bigarray.char ptr
 let marshal x = Bytearray.marshal x []
 let unmarshal = Bytearray.unmarshal
 
 module Iterator = struct
   type t = char ptr ref
 
-  let make buffer = ref @@ bigarray_start array1 buffer
+  let it_begin buffer = ref @@ to_ptr buffer
+
+  let it_end buffer =
+    let ptr = to_ptr buffer in
+    let l = Bytearray.length buffer in
+    ref @@ (ptr +@ l)
+
   let get_ptr t = !t
 
   let advance_by_offset t l =
@@ -48,12 +55,9 @@ module Iterator = struct
         int_ptr <-@ i;
         advance_by_offset t 8
     | Value.C.String s ->
-        (* NOTE: involves a copy, but there is nothing I can do, other than using
-           Bigarray.blit_from_string, but then I need to have bigarray all the time,
-           with the offset, just for this call *)
-        let src_ptr = coerce string (ptr char) s in
         let l = String.length s in
-        ignore (memcpy dst_ptr src_ptr (Unsigned.Size_t.of_int l));
+        let open Unsigned.Size_t in
+        ignore (memcpy_ocaml_string dst_ptr (ocaml_string_start s) (of_int l));
         advance_by_offset t l
 
   let show t (ty : Value_type.t) =

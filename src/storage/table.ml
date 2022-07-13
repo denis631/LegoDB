@@ -30,7 +30,9 @@ module Crud = struct
              List.find_exn meta.schema ~f:(fun (iu : Schema.Iu.t) ->
                  String.equal iu.column idx))
     in
-    let output_buffer = Tuple_buffer.make @@ Tuple_buffer.size_from_schema primary_key_columns in
+    let output_buffer =
+      Tuple_buffer.make @@ Tuple_buffer.length_from_schema primary_key_columns
+    in
     T.copy_tuple record meta.schema output_buffer primary_key_columns;
     output_buffer
 

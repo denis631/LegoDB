@@ -29,7 +29,7 @@ let make ~path ~schema =
       sep;
       schema;
       chan = None;
-      buffer = Tuple_buffer.make @@ Tuple_buffer.size_from_schema schema;
+      buffer = Tuple_buffer.make @@ Tuple_buffer.length_from_schema schema;
     }
 
 let open_op _ row_parser =

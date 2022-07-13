@@ -24,4 +24,9 @@ let ( %> ) f g x = g (f x)
 let curry f x y = f (x, y)
 let uncurry f (x, y) = f x y
 
-let memcpy = foreign "memcpy" (ptr char @-> ptr char @-> size_t @-> returning (ptr char))
+let memcpy =
+  foreign "memcpy" (ptr char @-> ptr char @-> size_t @-> returning (ptr char))
+
+let memcpy_ocaml_string =
+  foreign "memcpy"
+    (ptr char @-> ocaml_string @-> size_t @-> returning (ptr char))

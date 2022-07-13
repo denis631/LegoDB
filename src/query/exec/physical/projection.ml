@@ -17,7 +17,7 @@ let make fs ~schema ~child_op =
       schema;
       child_op;
       input_schema = fs.output_schema child_op;
-      buffer = Tuple_buffer.make @@ Tuple_buffer.size_from_schema schema;
+      buffer = Tuple_buffer.make @@ Tuple_buffer.length_from_schema schema;
     }
 
 let has_iu root_has_iu iu projection = root_has_iu iu projection.child_op

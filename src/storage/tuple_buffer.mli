@@ -7,16 +7,18 @@ type buffer = t
 
 val make : int -> t
 val length : t -> int
+val length_from_schema : Schema.t -> int
 val clone : t -> t
-val size_from_schema : Schema.t -> int
-val get_ptr : t -> char ptr
+val to_ptr : t -> char ptr
+val of_ptr : char ptr -> int -> t
 val marshal : 'a -> t
 val unmarshal : t -> int -> 'a
 
 module Iterator : sig
   type t
 
-  val make : buffer -> t
+  val it_begin : buffer -> t
+  val it_end : buffer -> t
   val get_ptr : t -> char ptr
   val advance_by_offset : t -> int -> unit
   val advance_by_type : t -> Value_type.t -> unit
