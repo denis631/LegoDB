@@ -1,14 +1,15 @@
 open Storage
 open Expr
 
-type proj_attrs = Schema.t [@@deriving show]
+type proj_attrs = Attributes of Schema.t | All [@@deriving show]
+
+type join_strategy = NLJ | HashJoin
 
 type t =
   | TableScan of Table.Meta.t
-  | Selection of Match.Expr.boolean * t
-  | Projection of proj_attrs * t
-  | CrossProduct of t * t
-  | Join of t * t * (Schema.t * Schema.t)
+  | Selection of t * Match.Expr.boolean
+  | Projection of t * proj_attrs
+  | Join of t * t * (Schema.t * Schema.t) * join_strategy
   | Copy of string * string
   | CreateTbl of Table.Meta.t
   | DropTbl of Table.Meta.t list

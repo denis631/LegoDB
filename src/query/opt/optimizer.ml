@@ -51,17 +51,14 @@ open Storage
 let fs = Physical.Operators.funcs
 
 let rec to_stages db = function
-  | Logical.Operators.TableScan tbl ->
-      Physical.Table_scan.make ~meta:tbl
-  | Logical.Operators.Selection (expr, op) ->
+  | Logical.Operators.TableScan tbl -> Physical.Table_scan.make ~meta:tbl
+  | Logical.Operators.Selection (op, expr) ->
       Physical.Selection.make fs ~predicate:expr ~child_op:(to_stages db op)
-  | Logical.Operators.Projection (proj_attrs, op) ->
-      Physical.Projection.make fs ~schema:proj_attrs
-        ~child_op:(to_stages db op)
-  | Logical.Operators.CrossProduct (_, _) ->
-      failwith
-        "TODO: no real cross products are allowed to be produced, only joins"
-  | Logical.Operators.Join (left_op, right_op, ius) ->
+  | Logical.Operators.Projection (op, Logical.Operators.All) -> to_stages db op
+  | Logical.Operators.Projection (op, Logical.Operators.Attributes proj_attrs)
+    ->
+      Physical.Projection.make fs ~schema:proj_attrs ~child_op:(to_stages db op)
+  | Logical.Operators.Join (left_op, right_op, ius, _) ->
       Physical.Hash_join.make ~left_op:(to_stages db left_op)
         ~right_op:(to_stages db right_op) ~hash_key_ius:ius
   | Logical.Operators.Copy (tbl_name, path) ->

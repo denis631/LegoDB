@@ -33,30 +33,27 @@ let make_operator_tree db = function
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
         let mk_tbl_scan tbl = Logical.Operators.TableScan tbl in
-        let mk_cross_product lhs rhs =
-          Logical.Operators.CrossProduct (lhs, rhs)
-        in
+        let mk_nlj lhs rhs = Logical.Operators.Join (lhs, rhs, ([], []), NLJ) in
         tbl_meta_seq
         |> Sequence.map ~f:mk_tbl_scan
-        |> Sequence.reduce ~f:mk_cross_product
-        |> Stdlib.Option.get
+        |> Sequence.reduce ~f:mk_nlj |> Stdlib.Option.get
       in
       let attrs =
-        if List.exists ~f:(phys_equal Star) attr_lst then
-          tbl_lst |> List.map ~f:find_tbl
-          |> List.map ~f:(fun (meta : Table.Meta.t) -> meta.schema)
-          |> List.concat
+        if List.exists ~f:(phys_equal Star) attr_lst then Logical.Operators.All
         else
-          Sequence.of_list attr_lst
-          |> Sequence.filter_map ~f:(function
-               | AttrName s -> Some s
-               | Star -> None)
-          |> Sequence.map
-               ~f:(Binder.find_column_attr (Sequence.to_list tbl_meta_seq))
-          |> Sequence.to_list
+          let schema =
+            Sequence.of_list attr_lst
+            |> Sequence.filter_map ~f:(function
+                 | AttrName s -> Some s
+                 | Star -> None)
+            |> Sequence.map
+                 ~f:(Binder.find_column_attr (Sequence.to_list tbl_meta_seq))
+            |> Sequence.to_list
+          in
+          Logical.Operators.Attributes schema
       in
       let select_op =
-        let mk_select child pred = Logical.Operators.Selection (pred, child) in
+        let mk_select child pred = Logical.Operators.Selection (child, pred) in
         let match_expr =
           let bool_preds =
             Option.value ~default:[] pred_lst
@@ -68,7 +65,7 @@ let make_operator_tree db = function
       in
       (* TODO: mark projection as star, in case it's all attrs projection, to
                further eliminate this stage if possible *)
-      Logical.Operators.Projection (attrs, select_op)
+      Logical.Operators.Projection (select_op, attrs)
   | Copy (tbl_name, path) -> Logical.Operators.Copy (tbl_name, path)
   | CreateTbl (tbl_name, tbl_elt_lst) ->
       let cols_and_indexes =
