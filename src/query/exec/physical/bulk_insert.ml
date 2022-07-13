@@ -5,7 +5,7 @@ open Storage
 type bulk_inserter = {
   child_op : op;
   meta : Storage.Table.Meta.t;
-  mutable seq : Storage.Tuple.t Sequence.t option;
+  mutable seq : Row.t Sequence.t option;
 }
 
 type op += BulkInserter of bulk_inserter
@@ -16,7 +16,7 @@ let open_op fs inserter =
   fs.open_op inserter.child_op;
   let seq =
     let f () =
-      Option.map ~f:(fun t -> (Tuple_buffer.clone t, ())) @@ fs.next () inserter.child_op
+      Option.map ~f:(fun t -> (RowBuffer.clone t, ())) @@ fs.next () inserter.child_op
     in
     Sequence.unfold ~init:() ~f
   in

@@ -36,7 +36,7 @@ let next fs ctx selection =
     match fs.next ctx selection.child_op with
     | Some tuple ->
         let f = Lazy.force_val selection.predicate in
-        if f @@ Storage.Tuple_buffer.to_ptr tuple then Some tuple else probe ()
+        if f @@ RowBuffer.to_ptr tuple then Some tuple else probe ()
     | None -> None
   in
   probe ()

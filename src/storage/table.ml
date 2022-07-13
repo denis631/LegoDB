@@ -1,7 +1,6 @@
 open Utils
-module T = Tuple
 
-type record = Tuple.t
+type record = Row.t
 
 open Core
 
@@ -15,8 +14,8 @@ module Meta = struct
     type t = meta
     type v = record
 
-    let marshal meta : record = Tuple_buffer.marshal meta
-    let unmarshal record : meta = Tuple_buffer.unmarshal record 0
+    let marshal meta : record = Row_buffer.marshal meta
+    let unmarshal record : meta = Row_buffer.unmarshal record 0
   end
 end
 
@@ -30,11 +29,7 @@ module Crud = struct
              List.find_exn meta.schema ~f:(fun (iu : Schema.Iu.t) ->
                  String.equal iu.column idx))
     in
-    let output_buffer =
-      Tuple_buffer.make @@ Tuple_buffer.length_from_schema primary_key_columns
-    in
-    T.copy_tuple record meta.schema output_buffer primary_key_columns;
-    output_buffer
+    Row.copy record meta.schema primary_key_columns
 
   module Tbl = struct
     let exists session_ref (meta : Meta.t) =

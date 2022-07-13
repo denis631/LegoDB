@@ -2,7 +2,7 @@ open Common
 open Core
 open Storage
 
-type tbl_scan = { meta : Table.Meta.t; seq : Storage.Tuple.t Core.Sequence.t }
+type tbl_scan = { meta : Table.Meta.t; seq : Row.t Core.Sequence.t }
 type op += TableScan of tbl_scan
 
 let make ~meta =

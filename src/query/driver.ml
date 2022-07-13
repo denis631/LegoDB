@@ -95,8 +95,7 @@ let run db ast f =
     let schema = Physical.Operators.output_schema tree in
     let next ctx =
       match Physical.Operators.next ctx tree with
-      (* TODO: think how to improve it *)
-      | Some t -> Some (Storage.Tuple.show t schema, ctx)
+      | Some t -> Some (Row.show t schema, ctx)
       | None ->
           Physical.Operators.close_op tree;
           None

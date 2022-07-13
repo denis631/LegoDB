@@ -37,7 +37,7 @@ type hash_join = {
   (* which of the attributes in the tuple will be used as key for lhs and rhs *)
   hash_key_ius : Schema.t * Schema.t;
   mutable hash_tbl : unit option;
-  mutable buffered_tuples : (Storage.Tuple.t * Schema.t) list;
+  mutable buffered_tuples : (Row.t * Schema.t) list;
 }
 
 type op += HashJoin of hash_join

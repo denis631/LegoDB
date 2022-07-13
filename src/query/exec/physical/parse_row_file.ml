@@ -7,7 +7,7 @@ type row_parser = {
   sep : Char.t;
   schema : Schema.t;
   mutable chan : In_channel.t option;
-  buffer : Storage.Tuple_buffer.t;
+  buffer : RowBuffer.t;
 }
 
 type op += RowParser of row_parser
@@ -29,7 +29,7 @@ let make ~path ~schema =
       sep;
       schema;
       chan = None;
-      buffer = Tuple_buffer.make @@ Tuple_buffer.length_from_schema schema;
+      buffer = RowBuffer.make @@ RowBuffer.length_from_schema schema;
     }
 
 let open_op _ row_parser =
@@ -43,7 +43,7 @@ let next _ _ row_parser =
   let open Option in
   let get_line () = row_parser.chan >>= In_channel.input_line in
   let parse s =
-    Tuple.parse row_parser.schema ~sep:row_parser.sep row_parser.buffer s;
+    Row.parse row_parser.schema ~sep:row_parser.sep row_parser.buffer s;
     row_parser.buffer
   in
   get_line () >>| parse

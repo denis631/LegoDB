@@ -1,6 +1,6 @@
 open Utils
 
-type record = Tuple.t
+type record = Row.t
 
 module Meta : sig
   type t = { name : string; schema : Schema.t; indexes : Index.t list }
