@@ -7,6 +7,8 @@ type attr = AttrName of string | Star [@@deriving show]
 type const = Int of int | Str of string [@@deriving show]
 type pred = EqConst of attr * const | EqAttr of attr * attr [@@deriving show]
 type key_type = PrimaryKey [@@deriving show]
+type order_expr = OrderExpr of col_name * Order.direction [@@deriving show]
+type order_clause = OrderClause of order_expr list [@@deriving show]
 
 type tbl_elt =
   | ColDef of string * Value_type.t
@@ -18,6 +20,6 @@ type sql_expr =
   | CreateTbl of tbl_name * tbl_elt list
   | DropTbl of tbl_name list
   (* DML *)
-  | Select of attr list * tbl_name list * pred list option
+  | Select of attr list * tbl_name list * pred list option * order_clause option
   | Copy of tbl_name * path
 [@@deriving show]

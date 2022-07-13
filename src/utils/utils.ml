@@ -13,6 +13,10 @@ module Value_type = struct
   include Value_type
 end
 
+module Order = struct
+  type direction = Ascending | Descending [@@deriving show]
+end
+
 (* Helper functions *)
 
 let tap f x =

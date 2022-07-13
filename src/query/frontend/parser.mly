@@ -13,6 +13,10 @@ open Utils
 %token WHERE_SYMBOL
 %token AND_SYMBOL
 %token FROM_SYMBOL
+%token ORDER_SYMBOL
+%token BY_SYMBOL
+%token ASC_SYMBOL
+%token DESC_SYMBOL
 %token LPAR_SYMBOL
 %token RPAR_SYMBOL
 %token CREATE_SYMBOL
@@ -46,8 +50,8 @@ ddl:
 ;
 
 create_tbl:
-  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_name; LPAR_SYMBOL; elt_lst = option(tbl_elt_lst); RPAR_SYMBOL; SEMICOLON_SYMBOL;
-    { CreateTbl (name, Option.value elt_lst ~default:[]) }
+  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_name; LPAR_SYMBOL; elt_list = option(tbl_elt_list); RPAR_SYMBOL; SEMICOLON_SYMBOL;
+    { CreateTbl (name, Option.value elt_list ~default:[]) }
 ;
 
 drop_tbl:
@@ -55,7 +59,7 @@ drop_tbl:
     { DropTbl (tbls) }
 ;
 
-tbl_elt_lst:
+tbl_elt_list:
   | elts = separated_list(COMMA_SYMBOL, tbl_elt)                                { elts }
 ;
 
@@ -83,13 +87,13 @@ fieldDefinition:
 
 data_type:
   | INT_SYMBOL                                                                  { Value_type.Integer }
-  | NUMERIC_SYMBOL; l = floatOptions                                            { Value_type.Numeric (fst l, snd l) }
+  | NUMERIC_SYMBOL; l = float_options                                           { Value_type.Numeric (fst l, snd l) }
   | CHAR_SYMBOL; l = fieldLength                                                { Value_type.Char l }
   | VARCHAR_SYMBOL; l = fieldLength                                             { Value_type.VarChar l }
   | TIMESTAMP_SYMBOL;                                                           { Value_type.Timestamp }
 ;
 
-floatOptions:
+float_options:
     /* fieldLength */
   | x = precision                                                               { x }
 ;
@@ -129,8 +133,13 @@ dml:
 ;
 
 select:
-  | SELECT_SYMBOL; attr_lst = select_item_list; tbl_lst = from_clause; pred_lst=option(where_clause); SEMICOLON_SYMBOL;
-    { Select ( attr_lst, tbl_lst, pred_lst) }
+  | SELECT_SYMBOL;
+    attr_list = select_item_list;
+    tbl_list = from_clause;
+    pred_list = option(where_clause);
+    order_clause = option(order_clause);
+    SEMICOLON_SYMBOL;
+      { Select ( attr_list, tbl_list, pred_list, order_clause) }
 ;
 
 select_item_list:
@@ -143,7 +152,7 @@ select_item:
 ;
 
 from_clause:
-  | FROM_SYMBOL; tbl_lst = table_list                                           { tbl_lst }
+  | FROM_SYMBOL; tbl_list = table_list                                          { tbl_list }
 ;
 
 table_list:
@@ -151,7 +160,7 @@ table_list:
 ;
 
 where_clause:
-  | WHERE_SYMBOL; pred_lst = predicate_list                                     { pred_lst }
+  | WHERE_SYMBOL; pred_list = predicate_list                                    { pred_list }
 ;
 
 predicate_list:
@@ -161,6 +170,26 @@ predicate_list:
 predicate:
   |  attr  = attribute; EQ_SYMBOL; const = constant;  { EqConst (attr, const)  }
   |  attr1 = attribute; EQ_SYMBOL; attr2 = attribute; { EqAttr  (attr1, attr2) }
+;
+
+order_clause:
+  | ORDER_SYMBOL; BY_SYMBOL; order_list = order_list
+    { OrderClause order_list }
+;
+
+direction:
+  | ASC_SYMBOL  { Order.Ascending  }
+  | DESC_SYMBOL { Order.Descending }
+;
+
+order_list:
+  | exprs = separated_list(COMMA_SYMBOL, order_expr)
+    { exprs }
+;
+
+order_expr:
+  | attr = ID; dir = option(direction)
+    { OrderExpr (attr, Option.value dir ~default:Order.Ascending) }
 ;
 
 /* AWS COPY-like command */

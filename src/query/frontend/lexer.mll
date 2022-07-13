@@ -33,6 +33,10 @@ rule next_token = parse
   | "where"     { WHERE_SYMBOL }
   | "and"       { AND_SYMBOL }
   | "from"      { FROM_SYMBOL }
+  | "order"     { ORDER_SYMBOL }
+  | "by"        { BY_SYMBOL }
+  | "asc"       { ASC_SYMBOL }
+  | "desc"      { DESC_SYMBOL }
   | "create"    { CREATE_SYMBOL }
   | "drop"      { DROP_SYMBOL }
   | "table"     { TABLE_SYMBOL }

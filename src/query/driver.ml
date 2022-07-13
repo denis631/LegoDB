@@ -28,7 +28,7 @@ let make_match_tree db pred_lst =
   Match.Expr.And (List.map ~f:(make_expr db) pred_lst)
 
 let make_operator_tree db = function
-  | Select (attr_lst, tbl_lst, pred_lst) ->
+  | Select (attr_lst, tbl_lst, pred_lst, _) ->
       let find_tbl = Catalog.find_table @@ Database.catalog db in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
