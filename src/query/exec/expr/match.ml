@@ -1,5 +1,6 @@
 open Core
 open Storage
+open Utils
 
 (* TODO: call the Module Expr, intead of Match, as the same tree will be used for other purposes *)
 (* TODO: refactor the expression type, should be able to evaluate to any primitive type *)

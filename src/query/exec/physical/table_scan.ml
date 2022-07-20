@@ -1,13 +1,17 @@
 open Common
 open Core
 open Storage
+open Utils
 
-type tbl_scan = { meta : Table.Meta.t; seq : Row.t Core.Sequence.t }
+type tbl_scan = { meta : TableMeta.t; seq : Record.t Core.Sequence.t }
 type op += TableScan of tbl_scan
 
-let make ~meta =
+let make ~(meta : TableMeta.t) =
+  (* TODO: not sure the session should be tied by catalog *)
   let seq =
-    Table.Crud.Record.read_all (Database.db_session_ref Database.instance) meta
+    Database.Session.Crud.Record.read_all
+      (Catalog.session Catalog.instance)
+      meta.name
   in
   TableScan { meta; seq }
 

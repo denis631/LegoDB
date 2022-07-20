@@ -1,12 +1,16 @@
 open Ctypes
 open Foreign
 
-module type Marshaller = sig
-  type t
-  type v
+module Index = struct
+   include Index
+end
 
-  val marshal : t -> v
-  val unmarshal : v -> t
+module Schema = struct
+   include Schema
+end
+
+module TableMeta = struct
+   include Table_meta
 end
 
 module Value_type = struct

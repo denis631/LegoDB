@@ -1,11 +1,12 @@
 open Common
 open Core
 open Storage
+open Utils
 
 type bulk_inserter = {
   child_op : op;
-  meta : Storage.Table.Meta.t;
-  mutable seq : Row.t Sequence.t option;
+  meta : TableMeta.t;
+  mutable seq : Record.t Sequence.t option;
 }
 
 type op += BulkInserter of bulk_inserter
@@ -16,7 +17,8 @@ let open_op fs inserter =
   fs.open_op inserter.child_op;
   let seq =
     let f () =
-      Option.map ~f:(fun t -> (RowBuffer.clone t, ())) @@ fs.next () inserter.child_op
+      Option.map ~f:(fun t -> ((fst t, RecordBuffer.clone @@ snd t), ()))
+      @@ fs.next () inserter.child_op
     in
     Sequence.unfold ~init:() ~f
   in
@@ -29,9 +31,9 @@ let close_op fs inserter =
 (* TODO: how about performing bulk loading in batches of 1000 tuples *)
 let next _ _ inserter =
   let insert =
-    Table.Crud.Record.bulk_insert
-      (Database.db_session_ref Database.instance)
-      inserter.meta
+    Database.Session.Crud.Record.bulk_insert
+      (Catalog.session Catalog.instance)
+      inserter.meta.name
   in
   Option.iter ~f:insert inserter.seq;
   None

@@ -1,4 +1,4 @@
-open Utils
+open Marshaller
 
 type t = PrimaryIdx of string list
 [@@deriving show { with_path = false }]

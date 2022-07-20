@@ -1,5 +1,5 @@
-open Utils
 open Core
+open Marshaller
 
 module Iu = struct
   type t = { table : string; column : string; ty : Value_type.t }

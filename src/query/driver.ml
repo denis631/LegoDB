@@ -24,12 +24,9 @@ let make_expr tbl_meta_lst pred =
       let rhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr2)) in
       Match.Expr.Eq (lhs, rhs)
 
-let make_match_tree db pred_lst =
-  Match.Expr.And (List.map ~f:(make_expr db) pred_lst)
-
-let make_operator_tree db = function
+let make_operator_tree catalog = function
   | Select (attr_lst, tbl_lst, pred_lst, _) ->
-      let find_tbl = Catalog.find_table @@ Database.catalog db in
+      let find_tbl = Catalog.find_tbl catalog in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
         let mk_tbl_scan tbl = Logical.Operators.TableScan tbl in
@@ -79,29 +76,28 @@ let make_operator_tree db = function
           ~init:([], []) tbl_elt_lst
       in
       let tbl_meta =
-        Table.Meta.make ~name:tbl_name ~schema:(fst cols_and_indexes)
+        TableMeta.make ~name:tbl_name ~schema:(fst cols_and_indexes)
           ~indexes:(snd cols_and_indexes) ()
       in
       Logical.Operators.CreateTbl tbl_meta
   | DropTbl tbls ->
-      Logical.Operators.DropTbl
-        (List.map ~f:(Catalog.find_table (Database.catalog db)) tbls)
+      Logical.Operators.DropTbl (List.map ~f:(Catalog.find_tbl catalog) tbls)
 
-let run db ast f =
+let run catalog ast f =
   let seq_of_tree tree =
     let schema = Physical.Operators.output_schema tree in
     let next ctx =
       match Physical.Operators.next ctx tree with
-      | Some t -> Some (Row.show t schema, ctx)
+      | Some t -> Some (Record.Data.show (snd t) schema, ctx)
       | None ->
           Physical.Operators.close_op tree;
           None
     in
     Sequence.unfold ~init:() ~f:next
   in
-  make_operator_tree db ast
+  make_operator_tree catalog ast
   |> tap (Logical.Operators.show %> print_endline)
-  |> Optimizer.optimize db
+  |> Optimizer.optimize catalog
   |> tap Physical.Operators.open_op
   |> seq_of_tree |> Sequence.iter ~f
 

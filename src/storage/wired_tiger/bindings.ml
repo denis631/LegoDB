@@ -25,9 +25,9 @@ module Cursor = struct
   let _ = field cursor_t "value_format" Ctypes.string
 
   (* int __F(get_key)(WT_CURSOR *cursor, ...); *)
-  let _ =
+  let get_key =
     field cursor_t "get_key"
-      (funptr (ptr cursor_t @-> ptr item_t @-> returning int))
+      (funptr (ptr cursor_t @-> ptr uint64_t @-> returning int))
 
   (* int __F(get_value)(WT_CURSOR *cursor, ...); *)
   let get_value =
@@ -37,7 +37,7 @@ module Cursor = struct
   (* void __F(set_key)(WT_CURSOR *cursor, ...); *)
   let set_key =
     field cursor_t "set_key"
-      (funptr (ptr cursor_t @-> ptr item_t @-> returning void))
+      (funptr (ptr cursor_t @-> uint64_t @-> returning void))
 
   (* void __F(set_value)(WT_CURSOR *cursor, ...); *)
   let set_value =

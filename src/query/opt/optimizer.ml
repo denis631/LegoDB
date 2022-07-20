@@ -1,5 +1,3 @@
-open Storage
-
 (* let rec optimize db = function *)
 (*   | Logical.Operators.TableScan tbl -> *)
 (*       Physical.Table_scan.make ~meta:tbl ~ius:(Table.ius tbl) *)
@@ -42,7 +40,7 @@ open Storage
 (*       let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in *)
 (*       let row_parser = *)
 (*         Physical.Parse_row_file.make ~path *)
-(*           ~schema:(Table.Meta.schema tbl_meta) *)
+(*           ~schema:(TableMeta.schema tbl_meta) *)
 (*       in *)
 (*       Physical.Bulk_insert.make ~child_op:row_parser ~meta:tbl_meta *)
 (*   | Logical.Operators.CreateTbl tbl_meta -> Physical.Create_tbl.make ~tbl_meta *)
@@ -50,21 +48,21 @@ open Storage
 
 let fs = Physical.Operators.funcs
 
-let rec to_stages db = function
+let rec to_stages catalog = function
   | Logical.Operators.TableScan tbl -> Physical.Table_scan.make ~meta:tbl
   | Logical.Operators.Selection (op, expr) ->
-      Physical.Selection.make fs ~predicate:expr ~child_op:(to_stages db op)
-  | Logical.Operators.Projection (op, Logical.Operators.All) -> to_stages db op
+      Physical.Selection.make fs ~predicate:expr ~child_op:(to_stages catalog op)
+  | Logical.Operators.Projection (op, Logical.Operators.All) -> to_stages catalog op
   | Logical.Operators.Projection (op, Logical.Operators.Attributes proj_attrs)
     ->
-      Physical.Projection.make fs ~schema:proj_attrs ~child_op:(to_stages db op)
+      Physical.Projection.make fs ~schema:proj_attrs ~child_op:(to_stages catalog op)
   | Logical.Operators.Join (left_op, right_op, ius, _) ->
-      Physical.Hash_join.make ~left_op:(to_stages db left_op)
-        ~right_op:(to_stages db right_op) ~hash_key_ius:ius
+      Physical.Hash_join.make ~left_op:(to_stages catalog left_op)
+        ~right_op:(to_stages catalog right_op) ~hash_key_ius:ius
   | Logical.Operators.Copy (tbl_name, path) ->
-      let tbl_meta = Catalog.find_table (Database.catalog db) tbl_name in
+      let tbl_meta = Catalog.find_tbl catalog tbl_name in
       let row_parser =
-        Physical.Parse_row_file.make ~path ~schema:tbl_meta.schema
+        Physical.File_record_parser.make ~path ~schema:tbl_meta.schema
       in
       Physical.Bulk_insert.make ~child_op:row_parser ~meta:tbl_meta
   | Logical.Operators.CreateTbl tbl_meta -> Physical.Create_tbl.make ~tbl_meta

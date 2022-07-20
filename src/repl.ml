@@ -1,11 +1,10 @@
 open Frontend
-open Storage
 
 let read () = Sql_parser.parse @@ read_line ()
 
 let eval query =
   Printf.printf "%s\n---\n" @@ Ast.show_sql_expr query;
-  Query.Driver.run Database.instance query
+  Query.Driver.run Catalog.instance query
 
 let print = print_endline
 

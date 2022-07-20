@@ -21,21 +21,24 @@ end
 
 (* Operations on records *)
 module Record : sig
-  type t = Bytearray.t
+  type record_id = Unsigned.UInt64.t
+  type record_data = Bytearray.t
+  type t = record_id * record_data
+
+  val insert_one :
+    session_ref:session_ref -> tbl_name:string -> record:t -> unit
 
   val bulk_insert :
     session_ref:session_ref ->
     tbl_name:string ->
-    keys_and_records:(t * t) list ->
+    records:t Core.Sequence.t ->
     unit
 
-  val insert_one :
-    session_ref:session_ref -> tbl_name:string -> key:t -> record:t -> unit
-
-  val delete_one : session_ref:session_ref -> tbl_name:string -> key:t -> unit
+  val delete_one :
+    session_ref:session_ref -> tbl_name:string -> key:record_id -> unit
 
   val lookup_one :
-    session_ref:session_ref -> tbl_name:string -> key:t -> t option
+    session_ref:session_ref -> tbl_name:string -> key:record_id -> t option
 
   val scan : session_ref:session_ref -> tbl_name:string -> unit -> t option
 end

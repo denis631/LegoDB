@@ -6,7 +6,6 @@ open Llvm
 open Llvm_executionengine
 open Llvm_target
 open Llvm_scalar_opts
-open Storage
 open Utils
 
 module Ctx = struct
@@ -15,7 +14,7 @@ module Ctx = struct
     llbuilder : llbuilder;
     llmodule : llmodule;
     varname_val_map : (string, llvalue) Stdlib.Hashtbl.t;
-    mutable ius : Storage.Schema.t;
+    mutable ius : Schema.t;
   }
 
   let make () =
@@ -224,7 +223,7 @@ module Instruction = struct
     let func_param = Array.get (params func) 0 in
     let load_elt (iu : Schema.Iu.t) =
       let addr =
-        let offset = Storage.Schema.offset_to_attr schema iu in
+        let offset = Schema.offset_to_attr schema iu in
         build_gep func_param
           [| const_int (i64_type ctx.llctx) offset |]
           iu.column ctx.llbuilder

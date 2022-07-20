@@ -1,3 +1,3 @@
-open Storage
+open Utils
 
-val find_column_attr : Table.Meta.t list -> string -> Schema.Iu.t
+val find_column_attr : TableMeta.t list -> string -> Schema.Iu.t

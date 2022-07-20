@@ -1,9 +1,10 @@
 (library
  (name physical)
  (libraries
+   catalog
+   expr
    frontend
    storage
-   expr
 
    core
    ctypes.foreign
