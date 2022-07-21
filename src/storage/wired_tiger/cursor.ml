@@ -1,10 +1,10 @@
 open Ctypes
 
+type t = Bindings.cursor_t structure
+
 let t = Bindings.cursor_t
 let alloc_ptr () = allocate (ptr t) (from_voidp t null)
-
-let get_key cursor_ptr =
-  getf !@cursor_ptr Bindings.Cursor.get_key cursor_ptr
+let get_key cursor_ptr = getf !@cursor_ptr Bindings.Cursor.get_key cursor_ptr
 
 let get_value cursor_ptr =
   getf !@cursor_ptr Bindings.Cursor.get_value cursor_ptr

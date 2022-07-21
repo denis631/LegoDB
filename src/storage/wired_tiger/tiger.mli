@@ -1,4 +1,6 @@
-type session_ref
+open Ctypes
+
+type session_ref = Session.t ptr
 
 val init_and_open_session : path:string -> config:string -> session_ref
 
