@@ -37,9 +37,6 @@ module Session = struct
       let insert session_ref tbl_name record =
         Wired_tiger.Record.insert_one ~session_ref ~tbl_name ~record
 
-      let bulk_insert session_ref tbl_name records =
-        Wired_tiger.Record.bulk_insert ~session_ref ~tbl_name ~records
-
       let read_all session_ref tbl_name =
         let scanner = Wired_tiger.Record.scan ~session_ref ~tbl_name in
         let generator f =
@@ -55,31 +52,47 @@ module Session = struct
   module Cursor = struct
     type t = WT.Cursor.t ptr
 
-    let make session tbl_name =
+    module Options = struct
+      type t = Bulk | Append
+
+      let show = function Bulk -> "bulk" | Append -> "append"
+    end
+
+    module ValueBuffer = struct
+      type t = record_id ptr * WT.Item.t ptr
+
+      let make () =
+        ( allocate uint64_t @@ Unsigned.UInt64.zero,
+          WT.Item.alloc (Ctypes.make WT.Item.t) )
+
+      let get_key buffer = !@(fst buffer)
+      let get_value buffer = WT.Item.to_bytes !@(snd buffer)
+
+      let init_from_value x =
+        (from_voidp uint64_t null, addr @@ WT.Item.of_bytes x)
+    end
+
+    let make session tbl_name options =
+      let config = List.map ~f:Options.show options |> String.concat ~sep:"," in
       let cursor_ptr_ptr = WT.Cursor.alloc_ptr () in
       let code =
-        WT.Session.open_cursor session ("table:" ^ tbl_name) null ""
+        WT.Session.open_cursor session ("table:" ^ tbl_name) null config
           cursor_ptr_ptr
       in
       Result.of_code code !@cursor_ptr_ptr `FailedCursorOpen
 
-    let get_key cursor =
-      let record_id_ptr = allocate uint64_t @@ Unsigned.UInt64.zero in
-      let code = WT.Cursor.get_key cursor record_id_ptr in
-      Result.of_code code !@record_id_ptr `FailedCursorGetKey
+    let get_key_into_buffer cursor buffer =
+      let code = WT.Cursor.get_key cursor (fst buffer) in
+      Result.of_code code () `FailedCursorGetKey
 
-    let get_value cursor =
-      let open Result in
-      let record_data_ptr = WT.Item.alloc (Ctypes.make WT.Item.t) in
-      let code = WT.Cursor.get_value cursor record_data_ptr in
-      Result.of_code code !@record_data_ptr `FailedCursorGetValue
-      >>| WT.Item.to_bytes
+    let get_value_into_buffer cursor buffer =
+      let code = WT.Cursor.get_value cursor (snd buffer) in
+      Result.of_code code () `FailedCursorGetValue
 
     let set_key = WT.Cursor.set_key
 
-    let set_value cursor value =
-      let item = WT.Item.alloc @@ WT.Item.of_bytes value in
-      WT.Cursor.set_value cursor item
+    let set_value_from_buffer cursor buffer =
+      WT.Cursor.set_value cursor (snd buffer)
 
     let insert cursor =
       let code = WT.Cursor.insert cursor in
@@ -92,16 +105,21 @@ module Session = struct
     let search cursor key =
       set_key cursor key;
       if Int.(WT.Cursor.search cursor = 0) then
-        match get_value cursor with Ok x -> Some x | _ -> None
+        let value_buffer = ValueBuffer.make () in
+        match get_value_into_buffer cursor value_buffer with
+        | Ok () -> Some (ValueBuffer.get_value value_buffer)
+        | _ -> None
       else None
-
-    (* let search_near cursor key = *)
-    (*    let exact_ptr = allocate int 0 in *)
-    (*    let code = WT.Cursor.search_near cursor_ptr exact_ptr in *)
 
     let next cursor =
       let code = WT.Cursor.next cursor in
       Result.of_code code () `FailedCursorNext
+
+    let seek cursor =
+      let exact_ptr = allocate int 0 in
+      let code = WT.Cursor.search_near cursor exact_ptr in
+      if !@exact_ptr < 0 then next cursor
+      else Result.of_code code () `FailedCursorSearchNear
 
     let close cursor =
       let code = WT.Cursor.close cursor in

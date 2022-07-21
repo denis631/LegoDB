@@ -15,7 +15,6 @@ module Session : sig
 
     module Record : sig
       val insert : t -> string -> record -> unit
-      val bulk_insert : t -> string -> record Core.Sequence.t -> unit
       val read_all : t -> string -> record Core.Sequence.t
       val delete : t -> string -> record_id -> unit
     end
@@ -24,16 +23,42 @@ module Session : sig
   module Cursor : sig
     type t
 
-    val make : session_t -> string -> (t, [> `FailedCursorOpen ]) result
-    val get_key : t -> (record_id, [> `FailedCursorGetKey ]) result
-    val get_value : t -> (record_data, [> `FailedCursorGetValue ]) result
+    module Options : sig
+      type t = Bulk | Append
+
+      val show : t -> string
+    end
+
+    module ValueBuffer : sig
+      type t
+
+      val make : unit -> t
+      val get_key : t -> record_id
+      val get_value : t -> record_data
+      val init_from_value : record_data -> t
+    end
+
+    val make :
+      session_t ->
+      string ->
+      Options.t list ->
+      (t, [> `FailedCursorOpen ]) result
+
+    val get_key_into_buffer :
+      t -> ValueBuffer.t -> (unit, [> `FailedCursorGetKey ]) result
+
+    val get_value_into_buffer :
+      t -> ValueBuffer.t -> (unit, [> `FailedCursorGetValue ]) result
+
     val set_key : t -> record_id -> unit
-    val set_value : t -> record_data -> unit
+    val set_value_from_buffer : t -> ValueBuffer.t -> unit
     val insert : t -> (unit, [> `FailedCursorInsert ]) result
     val remove : t -> (unit, [> `FailedCursorRemove ]) result
     val search : t -> record_id -> record_data option
 
-    (* val search_near : t -> record_id -> unit *)
+    val seek :
+      t -> (unit, [> `FailedCursorNext | `FailedCursorSearchNear ]) result
+
     val next : t -> (unit, [> `FailedCursorNext ]) result
     val close : t -> (unit, [> `FailedCursorClose ]) result
   end

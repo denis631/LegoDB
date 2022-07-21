@@ -113,29 +113,6 @@ module Record = struct
     in
     get_cursor_ptr () >>= insert >>= close_cursor |> ok_or_failwith
 
-  let bulk_insert ~session_ref ~tbl_name ~records =
-    let open Result in
-    assert (not @@ is_null session_ref);
-    let get_cursor_ptr () =
-      Table.open_cursor ~session_ref ~tbl_name ~config:"bulk,append"
-    in
-    let perform_writes cursor_ptr =
-      (* Records can only be bulk inserted in the sorted order *)
-      let perform_write record cursor_ptr =
-        let item_value = Item.of_bytes (snd record) in
-        Cursor.set_value cursor_ptr @@ addr item_value;
-        Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
-          "Couldn't insert data with the cursor"
-      in
-      records
-      |> Sequence.fold ~init:(Result.Ok cursor_ptr) ~f:(fun acc record ->
-             acc >>= perform_write record)
-    in
-    let close_cursor cursor_ptr =
-      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
-    in
-    get_cursor_ptr () >>= perform_writes >>= close_cursor |> ok_or_failwith
-
   let delete_one ~session_ref ~tbl_name ~key =
     let open Result in
     assert (not @@ is_null session_ref);

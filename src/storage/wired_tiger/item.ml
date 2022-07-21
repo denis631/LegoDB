@@ -1,5 +1,7 @@
 open Ctypes
 
+type t = Bindings.item_t structure
+
 let t = Bindings.item_t
 let alloc = allocate t
 let alloc_ptr () = allocate (ptr t) (from_voidp t null)

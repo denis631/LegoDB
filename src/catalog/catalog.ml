@@ -43,10 +43,13 @@ let make () =
       ()
   in
   let tbls =
+    (* TODO: with a branch stage? *)
     if not (Database.Session.Crud.Table.exists session meta.name) then (
       Database.Session.Crud.Table.create session meta.name;
       [])
     else
+      (* Need to build an execution tree and read data from it *)
+
       meta.name
       |> Database.Session.Crud.Record.read_all session
       |> Sequence.map ~f:snd

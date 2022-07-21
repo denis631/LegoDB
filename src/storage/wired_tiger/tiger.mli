@@ -30,12 +30,6 @@ module Record : sig
   val insert_one :
     session_ref:session_ref -> tbl_name:string -> record:t -> unit
 
-  val bulk_insert :
-    session_ref:session_ref ->
-    tbl_name:string ->
-    records:t Core.Sequence.t ->
-    unit
-
   val delete_one :
     session_ref:session_ref -> tbl_name:string -> key:record_id -> unit
 
