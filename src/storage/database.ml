@@ -42,7 +42,6 @@ module Session = struct
           match f () with Some record -> Some (record, f) | None -> None
         in
         Sequence.unfold ~init:scanner ~f:generator
-
     end
   end
 

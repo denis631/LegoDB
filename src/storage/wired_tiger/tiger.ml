@@ -9,12 +9,6 @@ module Result = struct
     if code = 0 then Result.Ok res else Result.Error msg
 end
 
-module Option = struct
-  include Option
-
-  let of_result = function Ok x -> Some x | Error _ -> None
-end
-
 let assert_cmd cmd_code = assert (0 = cmd_code)
 
 type session_ref = Session.t ptr
@@ -82,32 +76,6 @@ module Record = struct
   type record_id = Unsigned.UInt64.t
   type record_data = Bytearray.t
   type t = record_id * record_data
-
-  let lookup_one ~session_ref ~tbl_name ~key =
-    let open Result in
-    assert (not @@ is_null session_ref);
-    let get_cursor_ptr () =
-      Table.open_cursor ~session_ref ~tbl_name ~config:""
-    in
-    let search_for_key cursor_ptr =
-      Cursor.set_key cursor_ptr key;
-      Result.of_code (Cursor.search cursor_ptr) cursor_ptr "Nothing found"
-    in
-    let get_value cursor_ptr =
-      let item_ptr = Item.alloc (Ctypes.make Item.t) in
-      let get_value () =
-        Result.of_code
-          (Cursor.get_value cursor_ptr item_ptr)
-          () "Couldn't get the value"
-      in
-      let reset_cursor () =
-        Result.of_code (Cursor.reset cursor_ptr)
-          (key, Item.to_bytes !@item_ptr)
-          "Couldn't reset the cursor"
-      in
-      get_value () >>= reset_cursor
-    in
-    get_cursor_ptr () >>= search_for_key >>= get_value |> Option.of_result
 
   let scan ~session_ref ~tbl_name =
     let open Result in
