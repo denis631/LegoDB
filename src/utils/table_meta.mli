@@ -1,6 +1,11 @@
 open Marshaller
 
-type t = { name : string; schema : Schema.t; indexes : Index.t list }
+type t = {
+  name : string;
+  schema : Schema.t;
+  indexes : Index.t list;
+  mutable tid : Unsigned.UInt64.t [@default Unsigned.UInt64.zero];
+}
 [@@deriving make, show]
 
 type meta = t

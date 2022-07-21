@@ -11,22 +11,9 @@ type t = {
 let name = "LegoDB_catalog"
 
 let create_tbl catalog (tbl_meta : TableMeta.t) =
-  (* Wired_tiger.Txn.begin_txn catalog.session; *)
-  Database.Session.Crud.Table.create catalog.session tbl_meta.name;
-  Database.Session.Crud.Record.insert catalog.session catalog.meta.name
-    (Record.Id.zero, TableMeta.Marshaller.marshal tbl_meta);
-  (* Wired_tiger.Txn.commit_txn catalog.session; *)
   catalog.tbls <- tbl_meta :: catalog.tbls
 
 let drop_tbl catalog (tbl_meta : TableMeta.t) =
-  (* Wired_tiger.Txn.begin_txn catalog.session; *)
-  Database.Session.Crud.Table.drop catalog.session tbl_meta.name;
-
-  (* TODO: find key for value? *)
-  Database.Session.Crud.Record.delete catalog.session catalog.meta.name
-    Record.Id.zero;
-
-  (* Wired_tiger.Txn.commit_txn catalog.session; *)
   catalog.tbls <-
     List.filter ~f:(fun meta -> not @@ phys_equal meta tbl_meta) catalog.tbls
 
@@ -45,20 +32,22 @@ let make () =
   let tbls =
     (* TODO: with a branch stage? *)
     if not (Database.Session.Crud.Table.exists session meta.name) then (
-      Database.Session.Crud.Table.create session meta.name;
+      ignore (Database.Session.Crud.Table.create session meta.name);
       [])
     else
       (* Need to build an execution tree and read data from it *)
-
       meta.name
       |> Database.Session.Crud.Record.read_all session
-      |> Sequence.map ~f:snd
-      |> Sequence.map ~f:TableMeta.Marshaller.unmarshal
+      |> Sequence.map ~f:(fun (id, data) ->
+             let meta = TableMeta.Marshaller.unmarshal data in
+             meta.tid <- id;
+             meta)
       |> Sequence.to_list
   in
   { meta; tbls; session }
 
 let instance = make ()
+let meta catalog = catalog.meta
 let session catalog = catalog.session
 let tbls catalog = catalog.meta :: catalog.tbls
 

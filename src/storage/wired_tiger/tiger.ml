@@ -76,58 +76,12 @@ module Table = struct
       Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
     in
     open_cursor () >>= close_cursor |> Result.is_ok
-
-  let create ~session_ref ~tbl_name ~config =
-    assert (not @@ is_null session_ref);
-    if not @@ (0 = Session.create_tbl session_ref ("table:" ^ tbl_name) config)
-    then failwith "Couldn't create the session"
-
-  let drop ~session_ref ~tbl_name ~config =
-    assert (not @@ is_null session_ref);
-    if not @@ (0 = Session.drop_tbl session_ref ("table:" ^ tbl_name) config)
-    then failwith "Couldn't drop the table"
 end
 
 module Record = struct
   type record_id = Unsigned.UInt64.t
   type record_data = Bytearray.t
   type t = record_id * record_data
-
-  let insert_one ~session_ref ~tbl_name ~record =
-    let open Result in
-    assert (not @@ is_null session_ref);
-    let get_cursor_ptr () =
-      Table.open_cursor ~session_ref ~tbl_name ~config:"append"
-    in
-    let insert cursor_ptr =
-      let set_data () =
-        let item_value = Item.alloc @@ Item.of_bytes (snd record) in
-        Cursor.set_value cursor_ptr item_value
-      in
-      set_data ();
-      Result.of_code (Cursor.insert cursor_ptr) cursor_ptr
-        "Couldn't insert data with the cursor"
-    in
-    let close_cursor cursor_ptr =
-      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
-    in
-    get_cursor_ptr () >>= insert >>= close_cursor |> ok_or_failwith
-
-  let delete_one ~session_ref ~tbl_name ~key =
-    let open Result in
-    assert (not @@ is_null session_ref);
-    let get_cursor_ptr () =
-      Table.open_cursor ~session_ref ~tbl_name ~config:""
-    in
-    let delete cursor_ptr =
-      Cursor.set_key cursor_ptr key;
-      Result.of_code (Cursor.remove cursor_ptr) cursor_ptr
-        "Couldn't delete data with the cursor"
-    in
-    let close_cursor cursor_ptr =
-      Result.of_code (Cursor.close cursor_ptr) () "Couldn't close the cursor"
-    in
-    get_cursor_ptr () >>= delete >>= close_cursor |> ok_or_failwith
 
   let lookup_one ~session_ref ~tbl_name ~key =
     let open Result in

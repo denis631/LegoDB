@@ -26,17 +26,16 @@ module Session = struct
         Wired_tiger.Table.exists ~session_ref ~tbl_name
 
       let create session_ref tbl_name =
-        Wired_tiger.Table.create ~session_ref ~tbl_name
-          ~config:"key_format:r,value_format:u"
+         let config = "key_format:r,value_format:u" in
+         let code = WT.Session.create_tbl session_ref ("table:" ^ tbl_name) config in
+         Result.of_code code () `FailedTableCreate
 
       let drop session_ref tbl_name =
-        Wired_tiger.Table.drop ~session_ref ~tbl_name ~config:""
+         let code = WT.Session.drop_tbl session_ref ("table:" ^ tbl_name) "" in
+         Result.of_code code () `FailedTableDrop
     end
 
     module Record = struct
-      let insert session_ref tbl_name record =
-        Wired_tiger.Record.insert_one ~session_ref ~tbl_name ~record
-
       let read_all session_ref tbl_name =
         let scanner = Wired_tiger.Record.scan ~session_ref ~tbl_name in
         let generator f =
@@ -44,8 +43,6 @@ module Session = struct
         in
         Sequence.unfold ~init:scanner ~f:generator
 
-      let delete session_ref tbl_name key =
-        Wired_tiger.Record.delete_one ~session_ref ~tbl_name ~key
     end
   end
 
@@ -94,6 +91,10 @@ module Session = struct
     let set_value_from_buffer cursor buffer =
       WT.Cursor.set_value cursor (snd buffer)
 
+    let set_value cursor record_data =
+      let buffer = ValueBuffer.init_from_value record_data in
+      set_value_from_buffer cursor buffer
+
     let insert cursor =
       let code = WT.Cursor.insert cursor in
       Result.of_code code () `FailedCursorInsert
@@ -119,7 +120,7 @@ module Session = struct
       let exact_ptr = allocate int 0 in
       let code = WT.Cursor.search_near cursor exact_ptr in
       if !@exact_ptr < 0 then next cursor
-      else Result.of_code code () `FailedCursorSearchNear
+      else Result.of_code code () `FailedCursorSeek
 
     let close cursor =
       let code = WT.Cursor.close cursor in

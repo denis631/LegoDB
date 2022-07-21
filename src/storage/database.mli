@@ -9,14 +9,12 @@ module Session : sig
   module Crud : sig
     module Table : sig
       val exists : t -> string -> bool
-      val create : t -> string -> unit
-      val drop : t -> string -> unit
+      val create : t -> string -> (unit, [> `FailedTableCreate]) result
+      val drop : t -> string -> (unit, [> `FailedTableDrop]) result
     end
 
     module Record : sig
-      val insert : t -> string -> record -> unit
       val read_all : t -> string -> record Core.Sequence.t
-      val delete : t -> string -> record_id -> unit
     end
   end
 
@@ -51,13 +49,14 @@ module Session : sig
       t -> ValueBuffer.t -> (unit, [> `FailedCursorGetValue ]) result
 
     val set_key : t -> record_id -> unit
+    val set_value : t -> record_data -> unit
     val set_value_from_buffer : t -> ValueBuffer.t -> unit
     val insert : t -> (unit, [> `FailedCursorInsert ]) result
     val remove : t -> (unit, [> `FailedCursorRemove ]) result
     val search : t -> record_id -> record_data option
 
     val seek :
-      t -> (unit, [> `FailedCursorNext | `FailedCursorSearchNear ]) result
+      t -> (unit, [> `FailedCursorNext | `FailedCursorSeek ]) result
 
     val next : t -> (unit, [> `FailedCursorNext ]) result
     val close : t -> (unit, [> `FailedCursorClose ]) result

@@ -51,21 +51,28 @@ let fs = Physical.Operators.funcs
 let rec to_stages catalog = function
   | Logical.Operators.TableScan tbl -> Physical.Table_scan.make ~meta:tbl
   | Logical.Operators.Selection (op, expr) ->
-      Physical.Selection.make fs ~predicate:expr ~child_op:(to_stages catalog op)
-  | Logical.Operators.Projection (op, Logical.Operators.All) -> to_stages catalog op
+      Physical.Selection.make fs ~predicate:expr
+        ~child_op:(to_stages catalog op)
+  | Logical.Operators.Projection (op, Logical.Operators.All) ->
+      to_stages catalog op
   | Logical.Operators.Projection (op, Logical.Operators.Attributes proj_attrs)
     ->
-      Physical.Projection.make fs ~schema:proj_attrs ~child_op:(to_stages catalog op)
+      Physical.Projection.make fs ~schema:proj_attrs
+        ~child_op:(to_stages catalog op)
   | Logical.Operators.Join (left_op, right_op, ius, _) ->
-      Physical.Hash_join.make ~left_op:(to_stages catalog left_op)
-        ~right_op:(to_stages catalog right_op) ~hash_key_ius:ius
+      Physical.Hash_join.make
+        ~left_op:(to_stages catalog left_op)
+        ~right_op:(to_stages catalog right_op)
+        ~hash_key_ius:ius
   | Logical.Operators.Copy (tbl_name, path) ->
       let tbl_meta = Catalog.find_tbl catalog tbl_name in
       let row_parser =
         Physical.File_record_parser.make ~path ~schema:tbl_meta.schema
       in
-      Physical.Bulk_insert.make ~child_op:row_parser ~meta:tbl_meta
+      Physical.Inserter.make ~child_op:row_parser ~meta:tbl_meta
+        ~is_bulk_insert:true
   | Logical.Operators.CreateTbl tbl_meta -> Physical.Create_tbl.make ~tbl_meta
-  | Logical.Operators.DropTbl tbl_metas -> Physical.Drop_tbl.make ~tbl_metas
+  | Logical.Operators.DropTbl tbl_metas ->
+      Physical.Drop_tbl.make ~metas:tbl_metas
 
 let optimize = to_stages

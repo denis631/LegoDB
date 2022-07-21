@@ -4,18 +4,15 @@ open Storage
 open Utils
 module Cursor = Database.Session.Cursor
 
-module Result = struct
-  include Result
+type inserter = { child_op : op; meta : TableMeta.t; cursor : Cursor.t }
+type op += Inserter of inserter
 
-  let ( let* ) r f = Result.bind r ~f
-end
-
-type bulk_inserter = { child_op : op; meta : TableMeta.t; cursor : Cursor.t }
-type op += BulkInserter of bulk_inserter
-
-let make ~child_op ~(meta : TableMeta.t) =
+let make ~child_op ~(meta : TableMeta.t) ~is_bulk_insert =
+  let cursor_options =
+    if is_bulk_insert then [ Cursor.Options.Bulk; Cursor.Options.Append ]
+    else [ Cursor.Options.Append ]
+  in
   (* TODO: not sure the session should be tied by catalog *)
-  let cursor_options = [ Cursor.Options.Bulk; Cursor.Options.Append ] in
   let cursor =
     match
       Cursor.make (Catalog.session Catalog.instance) meta.name cursor_options
@@ -23,7 +20,7 @@ let make ~child_op ~(meta : TableMeta.t) =
     | Ok cursor -> cursor
     | _ -> failwith @@ "Failed opening a cursor for table: " ^ meta.name
   in
-  BulkInserter { child_op; meta; cursor }
+  Inserter { child_op; meta; cursor }
 
 let open_op fs inserter = fs.open_op inserter.child_op
 
@@ -34,14 +31,12 @@ let close_op fs inserter =
   | _ -> failwith "Failed closing the cursor"
 
 let next fs ctx inserter =
+  let try_append record_data =
+    let buffer = Cursor.ValueBuffer.init_from_value record_data in
+    let () = Cursor.set_value_from_buffer inserter.cursor buffer in
+    Cursor.insert inserter.cursor
+  in
   let rec write_next () =
-    let try_append record_data =
-      let open Result in
-      let buffer = Cursor.ValueBuffer.init_from_value record_data in
-      let () = Cursor.set_value_from_buffer inserter.cursor buffer in
-      let* () = Cursor.insert inserter.cursor in
-      return ()
-    in
     match fs.next ctx inserter.child_op with
     | Some (_, record_data) -> (
         match try_append record_data with

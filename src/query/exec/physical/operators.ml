@@ -20,7 +20,7 @@ let rec open_op = function
   | Selection.Selection selection -> Selection.open_op funcs selection
   | Projection.Projection projection -> Projection.open_op funcs projection
   | Hash_join.HashJoin join -> Hash_join.open_op funcs join
-  | Bulk_insert.BulkInserter inserter -> Bulk_insert.open_op funcs inserter
+  | Inserter.Inserter inserter -> Inserter.open_op funcs inserter
   | File_record_parser.RecordParser parser ->
       File_record_parser.open_op funcs parser
   | Create_tbl.CreateTbl creater -> Create_tbl.open_op funcs creater
@@ -32,7 +32,7 @@ and close_op = function
   | Selection.Selection selection -> Selection.close_op funcs selection
   | Projection.Projection projection -> Projection.close_op funcs projection
   | Hash_join.HashJoin join -> Hash_join.close_op funcs join
-  | Bulk_insert.BulkInserter inserter -> Bulk_insert.close_op funcs inserter
+  | Inserter.Inserter inserter -> Inserter.close_op funcs inserter
   | File_record_parser.RecordParser parser ->
       File_record_parser.close_op funcs parser
   | Create_tbl.CreateTbl creater -> Create_tbl.close_op funcs creater
@@ -44,7 +44,7 @@ and next ctx = function
   | Selection.Selection selection -> Selection.next funcs ctx selection
   | Projection.Projection projection -> Projection.next funcs ctx projection
   | Hash_join.HashJoin join -> Hash_join.next funcs ctx join
-  | Bulk_insert.BulkInserter inserter -> Bulk_insert.next funcs ctx inserter
+  | Inserter.Inserter inserter -> Inserter.next funcs ctx inserter
   | File_record_parser.RecordParser parser ->
       File_record_parser.next funcs ctx parser
   | Create_tbl.CreateTbl creater -> Create_tbl.next funcs ctx creater
