@@ -30,11 +30,8 @@ let make () =
       ()
   in
   let tbls =
-    (* TODO: with a branch stage? *)
-    if not (Database.Session.Crud.Table.exists session meta.name) then (
-      ignore (Database.Session.Crud.Table.create session meta.name);
-      [])
-    else
+    match Database.Session.Crud.Table.create session meta.name with
+    | Ok () ->
       (* Need to build an execution tree and read data from it *)
       meta.name
       |> Database.Session.Crud.Record.read_all session
@@ -43,6 +40,7 @@ let make () =
              meta.tid <- id;
              meta)
       |> Sequence.to_list
+    | Error `FailedTableCreate -> failwith "Failed creating catalog table"
   in
   { meta; tbls; session }
 

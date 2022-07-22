@@ -27,7 +27,7 @@ module Session : sig
       val show : t -> string
     end
 
-    module ValueBuffer : sig
+    module Buffer : sig
       type t
 
       val make : unit -> t
@@ -43,14 +43,14 @@ module Session : sig
       (t, [> `FailedCursorOpen ]) result
 
     val get_key_into_buffer :
-      t -> ValueBuffer.t -> (unit, [> `FailedCursorGetKey ]) result
+      t -> Buffer.t -> (unit, [> `FailedCursorGetKey ]) result
 
     val get_value_into_buffer :
-      t -> ValueBuffer.t -> (unit, [> `FailedCursorGetValue ]) result
+      t -> Buffer.t -> (unit, [> `FailedCursorGetValue ]) result
 
     val set_key : t -> record_id -> unit
     val set_value : t -> record_data -> unit
-    val set_value_from_buffer : t -> ValueBuffer.t -> unit
+    val set_value_from_buffer : t -> Buffer.t -> unit
     val insert : t -> (unit, [> `FailedCursorInsert ]) result
     val remove : t -> (unit, [> `FailedCursorRemove ]) result
     val search : t -> record_id -> record_data option

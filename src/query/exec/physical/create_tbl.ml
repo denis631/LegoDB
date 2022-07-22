@@ -32,9 +32,9 @@ let next _ _ create_tbl =
 
       (* Update record id of the table for easy removal *)
       let* record_id =
-        let buffer = Cursor.ValueBuffer.make () in
+        let buffer = Cursor.Buffer.make () in
         let* () = Cursor.get_key_into_buffer cursor buffer in
-        return (Cursor.ValueBuffer.get_key buffer)
+        return (Cursor.Buffer.get_key buffer)
       in
       create_tbl.meta.tid <- record_id;
       let* () = Cursor.close cursor in

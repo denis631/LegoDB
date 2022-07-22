@@ -9,8 +9,8 @@ type op += Inserter of inserter
 
 let make ~child_op ~(meta : TableMeta.t) ~is_bulk_insert =
   let cursor_options =
-    if is_bulk_insert then [ Cursor.Options.Bulk; Cursor.Options.Append ]
-    else [ Cursor.Options.Append ]
+    let open Cursor.Options in
+    if is_bulk_insert then [ Bulk; Append ] else [ Append ]
   in
   (* TODO: not sure the session should be tied by catalog *)
   let cursor =
@@ -32,7 +32,7 @@ let close_op fs inserter =
 
 let next fs ctx inserter =
   let try_append record_data =
-    let buffer = Cursor.ValueBuffer.init_from_value record_data in
+    let buffer = Cursor.Buffer.init_from_value record_data in
     let () = Cursor.set_value_from_buffer inserter.cursor buffer in
     Cursor.insert inserter.cursor
   in

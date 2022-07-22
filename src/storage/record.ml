@@ -34,13 +34,6 @@ module Data = struct
     let offsets = List.map ~f:(Schema.offset_to_attr src_ius) dst_ius in
     List.iter2_exn offsets ls ~f:copy_at_offset
 
-  let copy src_buffer src_ius dst_ius =
-    let dst_buffer =
-      Record_buffer.make @@ Record_buffer.length_from_schema dst_ius
-    in
-    copy_to src_buffer src_ius dst_buffer dst_ius;
-    dst_buffer
-
   let show t schema =
     let iterator = Iterator.it_begin t in
     List.map ~f:(fun (iu : Schema.Iu.t) -> Iterator.show iterator iu.ty) schema

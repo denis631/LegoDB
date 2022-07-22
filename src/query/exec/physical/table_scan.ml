@@ -13,7 +13,7 @@ end
 type tbl_scan = {
   meta : TableMeta.t;
   cursor : Cursor.t;
-  buffer : Cursor.ValueBuffer.t;
+  buffer : Cursor.Buffer.t;
   mutable first_run : bool;
 }
 
@@ -26,8 +26,7 @@ let make ~(meta : TableMeta.t) =
     | Ok cursor -> cursor
     | _ -> failwith @@ "Failed opening a cursor for table: " ^ meta.name
   in
-  TableScan
-    { meta; cursor; buffer = Cursor.ValueBuffer.make (); first_run = true }
+  TableScan { meta; cursor; buffer = Cursor.Buffer.make (); first_run = true }
 
 let has_iu _ iu tbl_scan =
   List.exists ~f:(Schema.Iu.equal iu) tbl_scan.meta.schema
@@ -55,7 +54,7 @@ let next _ tbl_scan =
     let* () = Cursor.get_key_into_buffer tbl_scan.cursor tbl_scan.buffer in
     let* () = Cursor.get_value_into_buffer tbl_scan.cursor tbl_scan.buffer in
     return
-      ( Cursor.ValueBuffer.get_key tbl_scan.buffer,
-        Cursor.ValueBuffer.get_value tbl_scan.buffer )
+      ( Cursor.Buffer.get_key tbl_scan.buffer,
+        Cursor.Buffer.get_value tbl_scan.buffer )
   in
   match get_next_record () with Ok record -> Some record | _ -> None

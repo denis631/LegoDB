@@ -54,7 +54,7 @@ module Session = struct
       let show = function Bulk -> "bulk" | Append -> "append"
     end
 
-    module ValueBuffer = struct
+    module Buffer = struct
       type t = record_id ptr * WT.Item.t ptr
 
       let make () =
@@ -91,7 +91,7 @@ module Session = struct
       WT.Cursor.set_value cursor (snd buffer)
 
     let set_value cursor record_data =
-      let buffer = ValueBuffer.init_from_value record_data in
+      let buffer = Buffer.init_from_value record_data in
       set_value_from_buffer cursor buffer
 
     let insert cursor =
@@ -105,9 +105,9 @@ module Session = struct
     let search cursor key =
       set_key cursor key;
       if Int.(WT.Cursor.search cursor = 0) then
-        let value_buffer = ValueBuffer.make () in
+        let value_buffer = Buffer.make () in
         match get_value_into_buffer cursor value_buffer with
-        | Ok () -> Some (ValueBuffer.get_value value_buffer)
+        | Ok () -> Some (Buffer.get_value value_buffer)
         | _ -> None
       else None
 

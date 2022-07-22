@@ -85,6 +85,7 @@ let parse_and_write (ty : Value_type.t) x write =
       write (C.String x);
 
       (* append nulls if needed *)
+      (* TODO: no need to write nulls? can just move the iterator forward? *)
       let l = String.length x in
       let nulls_length = k - l in
       if Int.(nulls_length > 0) then
