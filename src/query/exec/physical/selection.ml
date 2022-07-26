@@ -25,12 +25,12 @@ let make fs ~child_op ~predicate =
 
 let has_iu root_has_iu iu selection = root_has_iu iu selection.child_op
 
-let open_op fs selection =
+let open_op fs ctx selection =
   (* Compile the predicate function *)
   (* ignore @@ Lazy.force_val selection.predicate; *)
-  fs.open_op selection.child_op
+  fs.open_op ctx selection.child_op
 
-let close_op fs selection = fs.close_op selection.child_op
+let close_op fs ctx selection = fs.close_op ctx selection.child_op
 
 let next fs ctx selection =
   let rec probe () =

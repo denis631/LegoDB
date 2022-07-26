@@ -2,9 +2,6 @@ open Core
 open Ctypes
 module WT = Wired_tiger
 
-(* TODO: refactor and potentially remove this *)
-module Wired_tiger = Wired_tiger.Tiger
-
 module Result = struct
   include Result
 
@@ -20,29 +17,45 @@ module Session = struct
   type t = WT.Session.t ptr
   type session_t = t
 
-  module Crud = struct
-    module Table = struct
-      let exists session_ref tbl_name =
-        Wired_tiger.Table.exists ~session_ref ~tbl_name
+  let make ~path () =
+    let open Result in
+    let config =
+      "create, direct_io=[data, log, checkpoint], log=(enabled,recover=on), \
+       session_max=2000, cache_size=4096M"
+    in
+    let open_connection () =
+      let conn_ptr_ptr = WT.Connection.alloc_ptr () in
+      Result.of_code
+        (WT.Bindings.WiredTiger.wiredtiger_open path null config conn_ptr_ptr)
+        conn_ptr_ptr `FailedConnectionCreate
+    in
+    let open_session conn_ptr_ptr =
+      assert (not (is_null !@conn_ptr_ptr));
+      let conn_ptr = !@conn_ptr_ptr in
+      let session_ptr_ptr = WT.Session.alloc_ptr () in
+      let code =
+        WT.Connection.open_session conn_ptr null "isolation=snapshot"
+          session_ptr_ptr
+      in
+      Result.of_code code !@session_ptr_ptr `FailedSessionCreate
+    in
+    match open_connection () >>= open_session with
+    | Ok session -> session
+    | Error `FailedConnectionCreate ->
+        failwith "Failed creating a connection to WT storage"
+    | Error `FailedSessionCreate -> failwith "Failed creating a db session"
 
-      let create session_ref tbl_name =
-         let config = "key_format:r,value_format:u" in
-         let code = WT.Session.create_tbl session_ref ("table:" ^ tbl_name) config in
-         Result.of_code code () `FailedTableCreate
+  module Table = struct
+    let create session_ref tbl_name =
+      let config = "key_format:r,value_format:u" in
+      let code =
+        WT.Session.create_tbl session_ref ("table:" ^ tbl_name) config
+      in
+      Result.of_code code () `FailedTableCreate
 
-      let drop session_ref tbl_name =
-         let code = WT.Session.drop_tbl session_ref ("table:" ^ tbl_name) "" in
-         Result.of_code code () `FailedTableDrop
-    end
-
-    module Record = struct
-      let read_all session_ref tbl_name =
-        let scanner = Wired_tiger.Record.scan ~session_ref ~tbl_name in
-        let generator f =
-          match f () with Some record -> Some (record, f) | None -> None
-        in
-        Sequence.unfold ~init:scanner ~f:generator
-    end
+    let drop session_ref tbl_name =
+      let code = WT.Session.drop_tbl session_ref ("table:" ^ tbl_name) "" in
+      Result.of_code code () `FailedTableDrop
   end
 
   module Cursor = struct
@@ -126,10 +139,3 @@ module Session = struct
       Result.of_code code () `FailedCursorClose
   end
 end
-
-let make () =
-  Wired_tiger.init_and_open_session
-    ~path:"/Users/denis.grebennicov/Documents/lego_db/db"
-    ~config:
-      "create, direct_io=[data, log, checkpoint], log=(enabled,recover=on), \
-       session_max=2000, cache_size=4096M"

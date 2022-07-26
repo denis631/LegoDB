@@ -4,37 +4,45 @@ open Storage
 open Utils
 module Cursor = Database.Session.Cursor
 
-type inserter = { child_op : op; meta : TableMeta.t; cursor : Cursor.t }
+type inserter = {
+  child_op : op;
+  meta : TableMeta.t;
+  mutable cursor : Cursor.t option;
+  is_bulk_insert : bool;
+}
+
 type op += Inserter of inserter
 
 let make ~child_op ~(meta : TableMeta.t) ~is_bulk_insert =
-  let cursor_options =
-    let open Cursor.Options in
-    if is_bulk_insert then [ Bulk; Append ] else [ Append ]
-  in
-  (* TODO: not sure the session should be tied by catalog *)
+  Inserter { child_op; meta; cursor = None; is_bulk_insert }
+
+let open_op fs ctx inserter =
+  fs.open_op ctx inserter.child_op;
   let cursor =
-    match
-      Cursor.make (Catalog.session Catalog.instance) meta.name cursor_options
-    with
+    let cursor_options =
+      let open Cursor.Options in
+      if inserter.is_bulk_insert then [ Bulk; Append ] else [ Append ]
+    in
+    match Cursor.make ctx.session inserter.meta.name cursor_options with
     | Ok cursor -> cursor
-    | _ -> failwith @@ "Failed opening a cursor for table: " ^ meta.name
+    | _ ->
+        failwith @@ "Failed opening a cursor for table: " ^ inserter.meta.name
   in
-  Inserter { child_op; meta; cursor }
+  inserter.cursor <- Some cursor
 
-let open_op fs inserter = fs.open_op inserter.child_op
-
-let close_op fs inserter =
-  fs.close_op inserter.child_op;
-  match Cursor.close inserter.cursor with
-  | Ok () -> ()
+let close_op fs ctx inserter =
+  fs.close_op ctx inserter.child_op;
+  let cursor = Option.value_exn inserter.cursor in
+  match Cursor.close cursor with
+  | Ok () -> inserter.cursor <- None
   | _ -> failwith "Failed closing the cursor"
 
 let next fs ctx inserter =
   let try_append record_data =
+    let cursor = Option.value_exn inserter.cursor in
     let buffer = Cursor.Buffer.init_from_value record_data in
-    let () = Cursor.set_value_from_buffer inserter.cursor buffer in
-    Cursor.insert inserter.cursor
+    let () = Cursor.set_value_from_buffer cursor buffer in
+    Cursor.insert cursor
   in
   let rec write_next () =
     match fs.next ctx inserter.child_op with

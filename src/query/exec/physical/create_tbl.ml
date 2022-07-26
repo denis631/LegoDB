@@ -14,17 +14,16 @@ type create_tbl = { meta : TableMeta.t }
 type op += CreateTbl of create_tbl
 
 let make ~tbl_meta = CreateTbl { meta = tbl_meta }
-let open_op _ _ = ()
-let close_op _ _ = ()
+let open_op _ _ _ = ()
+let close_op _ _ _ = ()
 
-let next _ _ create_tbl =
-  let session = Catalog.session Catalog.instance in
+let next _ ctx create_tbl =
   let perform_writes () =
     let open Result in
     let write_into_catalog_table () =
-      let catalog_meta = Catalog.meta Catalog.instance in
+      let catalog_meta = Catalog.meta in
       let* cursor =
-        Cursor.make session catalog_meta.name [ Cursor.Options.Append ]
+        Cursor.make ctx.session catalog_meta.name [ Cursor.Options.Append ]
       in
       let record_data = TableMeta.Marshaller.marshal create_tbl.meta in
       Cursor.set_value cursor record_data;
@@ -40,12 +39,12 @@ let next _ _ create_tbl =
       let* () = Cursor.close cursor in
       return ()
     in
-    let* () = Database.Session.Crud.Table.create session create_tbl.meta.name in
+    let* () = Database.Session.Table.create ctx.session create_tbl.meta.name in
     let* () = write_into_catalog_table () in
     return ()
   in
   match perform_writes () with
   | Ok () ->
-      Catalog.create_tbl Catalog.instance create_tbl.meta;
+      Catalog.create_tbl ctx.catalog create_tbl.meta;
       None
   | _ -> failwith "Failed creating a table"

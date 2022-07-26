@@ -1,5 +1,3 @@
-type exec_ctx = unit
-
 let rec output_schema = function
   | Table_scan.TableScan tbl_scan -> tbl_scan.meta.schema
   | Selection.Selection selection -> output_schema selection.child_op
@@ -15,32 +13,32 @@ let rec has_iu iu = function
   | Hash_join.HashJoin join -> Hash_join.has_iu has_iu iu join
   | _ -> false
 
-let rec open_op = function
-  | Table_scan.TableScan tbl_scan -> Table_scan.open_op tbl_scan
-  | Selection.Selection selection -> Selection.open_op funcs selection
-  | Projection.Projection projection -> Projection.open_op funcs projection
-  | Hash_join.HashJoin join -> Hash_join.open_op funcs join
-  | Inserter.Inserter inserter -> Inserter.open_op funcs inserter
+let rec open_op ctx = function
+  | Table_scan.TableScan tbl_scan -> Table_scan.open_op funcs ctx tbl_scan
+  | Selection.Selection selection -> Selection.open_op funcs ctx selection
+  | Projection.Projection projection -> Projection.open_op funcs ctx projection
+  | Hash_join.HashJoin join -> Hash_join.open_op funcs ctx join
+  | Inserter.Inserter inserter -> Inserter.open_op funcs ctx inserter
   | File_record_parser.RecordParser parser ->
-      File_record_parser.open_op funcs parser
-  | Create_tbl.CreateTbl creater -> Create_tbl.open_op funcs creater
-  | Drop_tbl.DropTbl dropper -> Drop_tbl.open_op funcs dropper
+      File_record_parser.open_op funcs ctx parser
+  | Create_tbl.CreateTbl creater -> Create_tbl.open_op funcs ctx creater
+  | Drop_tbl.DropTbl dropper -> Drop_tbl.open_op funcs ctx dropper
   | _ -> failwith "unhandled case"
 
-and close_op = function
-  | Table_scan.TableScan tbl_scan -> Table_scan.close_op tbl_scan
-  | Selection.Selection selection -> Selection.close_op funcs selection
-  | Projection.Projection projection -> Projection.close_op funcs projection
-  | Hash_join.HashJoin join -> Hash_join.close_op funcs join
-  | Inserter.Inserter inserter -> Inserter.close_op funcs inserter
+and close_op ctx = function
+  | Table_scan.TableScan tbl_scan -> Table_scan.close_op funcs ctx tbl_scan
+  | Selection.Selection selection -> Selection.close_op funcs ctx selection
+  | Projection.Projection projection -> Projection.close_op funcs ctx projection
+  | Hash_join.HashJoin join -> Hash_join.close_op funcs ctx join
+  | Inserter.Inserter inserter -> Inserter.close_op funcs ctx inserter
   | File_record_parser.RecordParser parser ->
-      File_record_parser.close_op funcs parser
-  | Create_tbl.CreateTbl creater -> Create_tbl.close_op funcs creater
-  | Drop_tbl.DropTbl dropper -> Drop_tbl.close_op funcs dropper
+      File_record_parser.close_op funcs ctx parser
+  | Create_tbl.CreateTbl creater -> Create_tbl.close_op funcs ctx creater
+  | Drop_tbl.DropTbl dropper -> Drop_tbl.close_op funcs ctx dropper
   | _ -> failwith "unhandled case"
 
 and next ctx = function
-  | Table_scan.TableScan tbl_scan -> Table_scan.next ctx tbl_scan
+  | Table_scan.TableScan tbl_scan -> Table_scan.next funcs ctx tbl_scan
   | Selection.Selection selection -> Selection.next funcs ctx selection
   | Projection.Projection projection -> Projection.next funcs ctx projection
   | Hash_join.HashJoin join -> Hash_join.next funcs ctx join

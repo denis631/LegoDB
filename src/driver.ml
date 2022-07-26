@@ -83,22 +83,27 @@ let make_operator_tree catalog = function
   | DropTbl tbls ->
       Logical.Operators.DropTbl (List.map ~f:(Catalog.find_tbl catalog) tbls)
 
-let run catalog ast f =
+let run (legodb: Legodb.t) ast f =
+  let catalog = legodb.catalog in
+  let ctx : Physical.Common.ctx = { session=legodb.session; catalog } in 
   let seq_of_tree tree =
     let schema = Physical.Operators.output_schema tree in
     let next ctx =
       match Physical.Operators.next ctx tree with
       | Some t -> Some (Record.Data.show (snd t) schema, ctx)
       | None ->
-          Physical.Operators.close_op tree;
+          Physical.Operators.close_op ctx tree;
           None
     in
-    Sequence.unfold ~init:() ~f:next
+    let init () = 
+       Physical.Operators.open_op ctx tree;
+       ctx
+    in
+    Sequence.unfold ~init:(init ()) ~f:next
   in
   make_operator_tree catalog ast
   |> tap (Logical.Operators.show %> print_endline)
   |> Optimizer.optimize catalog
-  |> tap Physical.Operators.open_op
   |> seq_of_tree |> Sequence.iter ~f
 
 let benchmark f =

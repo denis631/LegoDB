@@ -1,12 +1,11 @@
-open Storage
 open Utils
 
 type t
 
-(* TODO: remove it. add another singleton class instead *)
-val instance : t
-val meta : t -> TableMeta.t
-val session : t -> Database.Session.t
+(* TableMeta.t of the catalog table *)
+val meta : TableMeta.t
+val make : unit -> t
+val set_catalog_tables : t -> TableMeta.t list -> unit
 val create_tbl : t -> TableMeta.t -> unit (* TODO: result type? *)
 val find_tbl : t -> string -> TableMeta.t
 val drop_tbl : t -> TableMeta.t -> unit

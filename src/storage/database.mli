@@ -6,16 +6,11 @@ module Session : sig
   type t
   type session_t = t
 
-  module Crud : sig
-    module Table : sig
-      val exists : t -> string -> bool
-      val create : t -> string -> (unit, [> `FailedTableCreate]) result
-      val drop : t -> string -> (unit, [> `FailedTableDrop]) result
-    end
+  val make : path:string -> unit -> t
 
-    module Record : sig
-      val read_all : t -> string -> record Core.Sequence.t
-    end
+  module Table : sig
+    val create : t -> string -> (unit, [> `FailedTableCreate ]) result
+    val drop : t -> string -> (unit, [> `FailedTableDrop ]) result
   end
 
   module Cursor : sig
@@ -54,13 +49,8 @@ module Session : sig
     val insert : t -> (unit, [> `FailedCursorInsert ]) result
     val remove : t -> (unit, [> `FailedCursorRemove ]) result
     val search : t -> record_id -> record_data option
-
-    val seek :
-      t -> (unit, [> `FailedCursorNext | `FailedCursorSeek ]) result
-
+    val seek : t -> (unit, [> `FailedCursorNext | `FailedCursorSeek ]) result
     val next : t -> (unit, [> `FailedCursorNext ]) result
     val close : t -> (unit, [> `FailedCursorClose ]) result
   end
 end
-
-val make : unit -> Session.t

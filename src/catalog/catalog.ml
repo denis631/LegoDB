@@ -1,14 +1,24 @@
 open Core
-open Storage
 open Utils
 
-type t = {
-  meta : TableMeta.t;
-  mutable tbls : TableMeta.t list;
-  session : Storage.Database.Session.t;
-}
+type t = { mutable tbls : TableMeta.t list }
 
 let name = "LegoDB_catalog"
+
+(* TODO: refactor this *)
+let meta =
+  TableMeta.make ~name
+    ~schema:
+      [
+        Schema.Iu.make ~table:name ~column:"name" ~ty:(VarChar 128);
+        Schema.Iu.make ~table:name ~column:"schema" ~ty:(VarChar 128);
+      ]
+    ~indexes:[ Index.PrimaryIdx [ "name" ] ]
+    ()
+
+let make () = { tbls = [] }
+let set_catalog_tables catalog tbls = catalog.tbls <- tbls
+let tbls catalog = meta :: catalog.tbls
 
 let create_tbl catalog (tbl_meta : TableMeta.t) =
   catalog.tbls <- tbl_meta :: catalog.tbls
@@ -16,38 +26,6 @@ let create_tbl catalog (tbl_meta : TableMeta.t) =
 let drop_tbl catalog (tbl_meta : TableMeta.t) =
   catalog.tbls <-
     List.filter ~f:(fun meta -> not @@ phys_equal meta tbl_meta) catalog.tbls
-
-let make () =
-  let session = Database.make () in
-  let meta =
-    TableMeta.make ~name
-      ~schema:
-        [
-          Schema.Iu.make ~table:name ~column:"name" ~ty:(VarChar 128);
-          Schema.Iu.make ~table:name ~column:"schema" ~ty:(VarChar 128);
-        ]
-      ~indexes:[ Index.PrimaryIdx [ "name" ] ]
-      ()
-  in
-  let tbls =
-    match Database.Session.Crud.Table.create session meta.name with
-    | Ok () ->
-      (* Need to build an execution tree and read data from it *)
-      meta.name
-      |> Database.Session.Crud.Record.read_all session
-      |> Sequence.map ~f:(fun (id, data) ->
-             let meta = TableMeta.Marshaller.unmarshal data in
-             meta.tid <- id;
-             meta)
-      |> Sequence.to_list
-    | Error `FailedTableCreate -> failwith "Failed creating catalog table"
-  in
-  { meta; tbls; session }
-
-let instance = make ()
-let meta catalog = catalog.meta
-let session catalog = catalog.session
-let tbls catalog = catalog.meta :: catalog.tbls
 
 let find_tbl catalog tbl_name =
   let tbl_meta =

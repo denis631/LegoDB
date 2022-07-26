@@ -33,10 +33,10 @@ let make ~path ~schema =
       buffer = RecordBuffer.make @@ RecordBuffer.length_from_schema schema;
     }
 
-let open_op _ record_parser =
+let open_op _ _ record_parser =
   record_parser.chan <- Some (In_channel.create record_parser.path)
 
-let close_op _ record_parser =
+let close_op _ _ record_parser =
   Option.iter ~f:In_channel.close record_parser.chan;
   record_parser.chan <- None
 

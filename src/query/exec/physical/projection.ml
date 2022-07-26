@@ -22,8 +22,8 @@ let make fs ~schema ~child_op =
     }
 
 let has_iu root_has_iu iu projection = root_has_iu iu projection.child_op
-let open_op fs projection = fs.open_op projection.child_op
-let close_op fs projection = fs.close_op projection.child_op
+let open_op fs ctx projection = fs.open_op ctx projection.child_op
+let close_op fs ctx projection = fs.close_op ctx projection.child_op
 
 let next fs ctx projection =
   let open Option in

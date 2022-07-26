@@ -50,9 +50,9 @@ let make ~left_op ~right_op ~hash_key_ius =
 let has_iu root_has_iu iu join =
   root_has_iu iu join.left_op || root_has_iu iu join.right_op
 
-let open_op _ _ = ()
+let open_op _ _ _ = ()
 let next _ _ _ = None
-let close_op _ _ = ()
+let close_op _ _ _ = ()
 
 (* let open_op fs join = *)
 (*   (* let build_hashtbl () = *) *)
