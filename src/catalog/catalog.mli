@@ -1,4 +1,4 @@
-open Utils
+module TableMeta = Utils.Table_meta
 
 type t
 

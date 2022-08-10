@@ -2,7 +2,9 @@ open Common
 open Core
 open Storage
 open Utils
+
 module Cursor = Database.Session.Cursor
+module TableMeta = Table_meta
 
 module Result = struct
   include Result

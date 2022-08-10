@@ -1,31 +1,12 @@
-open Frontend.Ast
-open Storage
-open Expr
-open Utils
+open Binder.Ast
 open Core
-
-let make_expr tbl_meta_lst pred =
-  let make_attr_iu = function
-    | AttrName x -> Binder.find_column_attr tbl_meta_lst x
-    | _ -> failwith "TODO: support this use-case"
-  in
-  let make_const = function
-    | Int i ->
-        Match.Expr.Leaf (Match.Expr.Const (Value.Integer (Int64.of_int i)))
-    | Str s -> Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s))
-  in
-  match pred with
-  | EqConst (attr, const) ->
-      let lhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr)) in
-      let rhs = make_const const in
-      Match.Expr.Eq (lhs, rhs)
-  | EqAttr (attr1, attr2) ->
-      let lhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr1)) in
-      let rhs = Match.Expr.Leaf (Match.Expr.TableAttr (make_attr_iu attr2)) in
-      Match.Expr.Eq (lhs, rhs)
+open Utils
+open Utils.Fp
+open Storage
+module TableMeta = Table_meta
 
 let make_operator_tree catalog = function
-  | Select (attr_lst, tbl_lst, pred_lst, _) ->
+  | Select (attr_lst, FromClause tbl_lst, where_clause, _) ->
       let find_tbl = Catalog.find_tbl catalog in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
@@ -41,27 +22,18 @@ let make_operator_tree catalog = function
           let schema =
             Sequence.of_list attr_lst
             |> Sequence.filter_map ~f:(function
-                 | AttrName s -> Some s
+                 | Attr iu -> Some iu
                  | Star -> None)
-            |> Sequence.map
-                 ~f:(Binder.find_column_attr (Sequence.to_list tbl_meta_seq))
             |> Sequence.to_list
           in
           Logical.Operators.Attributes schema
       in
       let select_op =
-        let mk_select child pred = Logical.Operators.Selection (child, pred) in
-        let match_expr =
-          let bool_preds =
-            Option.value ~default:[] pred_lst
-            |> List.map ~f:(make_expr (Sequence.to_list tbl_meta_seq))
-          in
-          Match.Expr.And bool_preds
-        in
-        mk_select tbl_scan match_expr
+        match where_clause with
+        | Some (WhereClause match_expr) ->
+            Logical.Operators.Selection (tbl_scan, match_expr)
+        | None -> tbl_scan
       in
-      (* TODO: mark projection as star, in case it's all attrs projection, to
-               further eliminate this stage if possible *)
       Logical.Operators.Projection (select_op, attrs)
   | Copy (tbl_name, path) -> Logical.Operators.Copy (tbl_name, path)
   | CreateTbl (tbl_name, tbl_elt_lst) ->
@@ -83,9 +55,9 @@ let make_operator_tree catalog = function
   | DropTbl tbls ->
       Logical.Operators.DropTbl (List.map ~f:(Catalog.find_tbl catalog) tbls)
 
-let run (legodb: Legodb.t) ast f =
+let run (legodb : Legodb.t) ast f =
   let catalog = legodb.catalog in
-  let ctx : Physical.Common.ctx = { session=legodb.session; catalog } in 
+  let ctx : Physical.Common.ctx = { session = legodb.session; catalog } in
   let seq_of_tree tree =
     let schema = Physical.Operators.output_schema tree in
     let next ctx =
@@ -95,16 +67,15 @@ let run (legodb: Legodb.t) ast f =
           Physical.Operators.close_op ctx tree;
           None
     in
-    let init () = 
-       Physical.Operators.open_op ctx tree;
-       ctx
+    let init () =
+      Physical.Operators.open_op ctx tree;
+      ctx
     in
     Sequence.unfold ~init:(init ()) ~f:next
   in
-  make_operator_tree catalog ast
+  Binder.bind catalog ast |> make_operator_tree catalog
   |> tap (Logical.Operators.show %> print_endline)
-  |> Optimizer.optimize catalog
-  |> seq_of_tree |> Sequence.iter ~f
+  |> Optimizer.optimize catalog |> seq_of_tree |> Sequence.iter ~f
 
 let benchmark f =
   let t = Stdlib.Sys.time () in

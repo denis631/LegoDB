@@ -1,5 +1,6 @@
 %{
 open Ast
+open Expr
 open Utils
 %}
 
@@ -50,12 +51,12 @@ ddl:
 ;
 
 create_tbl:
-  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_name; LPAR_SYMBOL; elt_list = option(tbl_elt_list); RPAR_SYMBOL; SEMICOLON_SYMBOL;
+  | CREATE_SYMBOL; TABLE_SYMBOL; name = tbl_ref; LPAR_SYMBOL; elt_list = option(tbl_elt_list); RPAR_SYMBOL; SEMICOLON_SYMBOL;
     { CreateTbl (name, Option.value elt_list ~default:[]) }
 ;
 
 drop_tbl:
-  | DROP_SYMBOL; TABLE_SYMBOL; tbls = separated_list(COMMA_SYMBOL, tbl_name); SEMICOLON_SYMBOL;
+  | DROP_SYMBOL; TABLE_SYMBOL; tbls = separated_list(COMMA_SYMBOL, tbl_ref); SEMICOLON_SYMBOL;
     { DropTbl (tbls) }
 ;
 
@@ -135,11 +136,11 @@ dml:
 select:
   | SELECT_SYMBOL;
     attr_list = select_item_list;
-    tbl_list = from_clause;
-    pred_list = option(where_clause);
+    from_clause = from_clause;
+    where_clause = option(where_clause);
     order_clause = option(order_clause);
     SEMICOLON_SYMBOL;
-      { Select ( attr_list, tbl_list, pred_list, order_clause) }
+      { Select ( attr_list, from_clause, where_clause, order_clause) }
 ;
 
 select_item_list:
@@ -147,29 +148,42 @@ select_item_list:
 ;
 
 select_item:
-  | x = attribute;                                                              { x }
-  | STAR_SYMBOL;                                                                { Star }
+  | attr = qualifiedIdentifier;
+    { Attr attr }
+  | STAR_SYMBOL;
+    { Star }
 ;
 
 from_clause:
-  | FROM_SYMBOL; tbl_list = table_list                                          { tbl_list }
-;
-
-table_list:
-  | ids = separated_list(COMMA_SYMBOL, ID)                                      { ids }
+  | FROM_SYMBOL; tbl_list = separated_list(COMMA_SYMBOL, tbl_factor)
+    { FromClause tbl_list }
 ;
 
 where_clause:
-  | WHERE_SYMBOL; pred_list = predicate_list                                    { pred_list }
+  | WHERE_SYMBOL; expr = separated_list(AND_SYMBOL, expr)
+    { WhereClause (Match.Expr.And expr) }
 ;
 
-predicate_list:
-  | preds = separated_list(AND_SYMBOL, predicate)                               { preds }
+expr:
+  | pred = predicate
+    { pred }
+
+  /* | NOT_SYMBOL; expr = expr */
+  /*   { Match.Expr.Not expr } */
 ;
 
 predicate:
-  |  attr  = attribute; EQ_SYMBOL; const = constant;  { EqConst (attr, const)  }
-  |  attr1 = attribute; EQ_SYMBOL; attr2 = attribute; { EqAttr  (attr1, attr2) }
+  | lhs = predicate_elt; EQ_SYMBOL; rhs = predicate_elt
+    { Match.Expr.Eq (lhs, rhs) }
+;
+
+predicate_elt:
+  | attr = attribute
+    { Match.Expr.Leaf (Match.Expr.TableAttrName attr) }
+  | s = STRING
+    { Match.Expr.Leaf (Match.Expr.Const (Value.StringLiteral s)) }
+  | i = INT
+    { Match.Expr.Leaf (Match.Expr.Const (Value.Integer (Int64.of_int i))) }
 ;
 
 order_clause:
@@ -188,33 +202,41 @@ order_list:
 ;
 
 order_expr:
-  | attr = ID; dir = option(direction)
+  | attr = qualifiedIdentifier; dir = option(direction)
     { OrderExpr (attr, Option.value dir ~default:Order.Ascending) }
 ;
 
 /* AWS COPY-like command */
 copy:
-  | COPY_SYMBOL; name = tbl_name; FROM_SYMBOL; path = STRING; SEMICOLON_SYMBOL;
+  /* TODO: add opportunity to add a separator */
+  | COPY_SYMBOL; name = tbl_ref; FROM_SYMBOL; path = STRING; SEMICOLON_SYMBOL;
     { Copy (name, path) }
 
 // --- Common basic rules ------------------------------------------------------------------------
 attribute:
-  | attr = ID                                  { AttrName attr }
+  | attr = ID                                  { attr }
 
-constant:
-  | s = STRING                                 { Str s }
-  | i = INT                                    { Int i }
+tbl_factor:
+  | tbl = single_tbl
+    { tbl }
+  /* derived_tbl (subquery) */
 ;
 
-tbl_name:
-  | id = qualifiedIdentifier                   { id }
+single_tbl:
+  | tbl = tbl_ref /* tbl_alias */
+    { tbl }
+;
+
+tbl_ref:
+  | id = qualifiedIdentifier
+    { id }
 ;
 
 col_name:
   | id = identifier                            { id }
 
 identifier:
-  | id = ID                                     { id }
+  | id = ID                                    { id }
 ;
 
 /* TODO: add support for dotted identifiers */

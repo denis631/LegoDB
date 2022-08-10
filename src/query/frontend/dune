@@ -1,6 +1,9 @@
 (library
  (name frontend)
- (libraries utils)
+ (libraries
+   catalog
+   expr
+   utils)
  (preprocess
   (pps ppx_deriving.show)))
 

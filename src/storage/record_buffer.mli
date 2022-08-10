@@ -23,6 +23,6 @@ module Iterator : sig
   val advance_by_offset : t -> int -> unit
   val advance_by_type : t -> Value_type.t -> unit
   val copy : t -> t -> int -> unit
-  val write : t -> Value.C.t -> unit
+  val write : t -> Cvalue.t -> unit
   val show : t -> Value_type.t -> string
 end

@@ -1,6 +1,8 @@
 open Expr
 open Utils
 
+module TableMeta = Table_meta
+
 type proj_attrs = Attributes of Schema.t | All [@@deriving show]
 
 type join_strategy = NLJ | HashJoin

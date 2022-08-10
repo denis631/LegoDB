@@ -2,7 +2,9 @@ open Common
 open Core
 open Storage
 open Utils
+
 module Cursor = Database.Session.Cursor
+module TableMeta = Table_meta
 
 type inserter = {
   child_op : op;

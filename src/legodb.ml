@@ -2,6 +2,8 @@ open Core
 open Storage
 open Utils
 
+module TableMeta = Table_meta
+
 type t = {
    session : Storage.Database.Session.t;
    catalog : Catalog.t;

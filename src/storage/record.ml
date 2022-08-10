@@ -17,7 +17,7 @@ module Data = struct
     let iterator = Iterator.it_begin buffer in
     let parse (ty : Value_type.t) str =
       let buffer_write = Iterator.write iterator in
-      Value.parse_and_write ty str buffer_write
+      Cvalue.parse_and_write ty str buffer_write
     in
     String.split ~on:sep data |> List.iter2_exn ~f:parse types
 

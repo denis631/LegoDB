@@ -1,6 +1,8 @@
 open Core
 open Utils
 
+module TableMeta = Utils.Table_meta
+
 type t = { mutable tbls : TableMeta.t list }
 
 let name = "LegoDB_catalog"

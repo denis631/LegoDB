@@ -1,6 +1,7 @@
 open Core
 open Ctypes
 open Utils
+open Utils.Bindings
 
 type t = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 type buffer = t
@@ -50,11 +51,11 @@ module Iterator = struct
   let write t x =
     let dst_ptr = get_ptr t in
     match x with
-    | Value.C.Int i ->
+    | Cvalue.Int i ->
         let int_ptr = coerce (ptr char) (ptr int64_t) dst_ptr in
         int_ptr <-@ i;
         advance_by_offset t 8
-    | Value.C.String s ->
+    | Cvalue.String s ->
         let l = String.length s in
         let open Unsigned.Size_t in
         ignore (memcpy_ocaml_string dst_ptr (ocaml_string_start s) (of_int l));
