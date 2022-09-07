@@ -2,7 +2,6 @@ open Common
 open Core
 open Storage
 open Utils
-
 module Cursor = Database.Session.Cursor
 module TableMeta = Table_meta
 
@@ -54,10 +53,10 @@ let next _ _ tbl_scan =
       if not tbl_scan.first_run then Cursor.next cursor
       else
         let minKey = Unsigned.UInt64.of_int 1 in
+        tbl_scan.first_run <- false;
         Cursor.set_key cursor minKey;
         Cursor.seek cursor
     in
-    tbl_scan.first_run <- false;
     let* () = Cursor.get_key_into_buffer cursor tbl_scan.buffer in
     let* () = Cursor.get_value_into_buffer cursor tbl_scan.buffer in
     return
