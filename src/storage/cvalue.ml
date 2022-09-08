@@ -7,11 +7,12 @@ let ty = function
   | Int _ -> Value_type.Integer
   | String s -> Value_type.VarChar (String.length s)
 
+(* TODO: refactor this method as it is nasty *)
 let parse_and_write (ty : Value_type.t) x write =
   match ty with
   | Integer -> write (Int (Int64.of_string x))
   | Numeric (len, precision) ->
-      let trimmed_x = x in
+      let trimmed_x = Stdlib.String.trim x in
       let is_neg = Char.equal '-' @@ String.get x 0 in
       let chars =
         let char_list = String.to_list trimmed_x in
@@ -20,10 +21,13 @@ let parse_and_write (ty : Value_type.t) x write =
         | _ -> char_list
       in
       let build_val (digits_seen, digits_seen_fraction, is_fraction, result) x =
-        if Char.equal x '.' then
+        if Char.equal x ',' then
           if is_fraction then
             failwith "invalid number format: already in fraction"
           else (digits_seen, digits_seen_fraction, true, result)
+        (* Workaround for albanian csv salary format *)
+        else if Char.equal x '.' then
+          (digits_seen, digits_seen_fraction, is_fraction, result)
         else
           let zero = Char.to_int '0' in
           let nine = Char.to_int '9' in
