@@ -32,6 +32,7 @@ open Utils
 %token VARCHAR_SYMBOL
 %token TIMESTAMP_SYMBOL
 %token EQ_SYMBOL
+%token LIMIT_SYMBOL
 %token EOF
 
 %start <Ast.sql_expr> query
@@ -139,8 +140,11 @@ select:
     from_clause = from_clause;
     where_clause = option(where_clause);
     order_clause = option(order_clause);
+    limit_clause = option(limit_clause);
     SEMICOLON_SYMBOL;
-      { Select ( attr_list, from_clause, where_clause, order_clause) }
+      { Select ( attr_list, from_clause, where_clause, order_clause, limit_clause) }
+
+/* add limit */
 ;
 
 select_item_list:
@@ -205,6 +209,9 @@ order_expr:
   | attr = qualifiedIdentifier; dir = option(direction)
     { OrderExpr (attr, Option.value dir ~default:Order.Ascending) }
 ;
+
+limit_clause:
+  | LIMIT_SYMBOL; limit = INT { LimitClause limit }
 
 /* AWS COPY-like command */
 copy:

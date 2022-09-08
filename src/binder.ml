@@ -12,6 +12,7 @@ module Ast = struct
   [@@deriving show]
 
   type order_clause = OrderClause of order_expr list [@@deriving show]
+  type limit_clause = LimitClause of int [@@deriving show]
 
   type sql_expr =
     (* DDL *)
@@ -19,7 +20,11 @@ module Ast = struct
     | DropTbl of tbl_name list
     (* DML *)
     | Select of
-        attr list * from_clause * where_clause option * order_clause option
+        attr list
+        * from_clause
+        * where_clause option
+        * order_clause option
+        * limit_clause option
     | Copy of tbl_name * path
   [@@deriving show]
 end
@@ -65,7 +70,11 @@ let bind_order_expr ctx (Frontend.Ast.OrderExpr (name, dir)) =
 let bind catalog ast =
   match ast with
   | Frontend.Ast.Select
-      (attr_list, FromClause tbl_list, where_clause_opt, order_clause_opt) ->
+      ( attr_list,
+        FromClause tbl_list,
+        where_clause_opt,
+        order_clause_opt,
+        limit_clause_opt ) ->
       let ctx = make_ctx catalog () in
       (* Populates the context with the tables *)
       let _ = List.map ~f:(bind_tbl ctx) tbl_list in
@@ -92,7 +101,13 @@ let bind catalog ast =
               (Ast.OrderClause
                  (List.map ~f:(bind_order_expr ctx) order_expr_list))
       in
-      Ast.Select (attrs, FromClause tbl_list, where_clause, order_clause)
+      let limit_clause =
+        match limit_clause_opt with
+        | None -> None
+        | Some (Frontend.Ast.LimitClause limit) -> Some (Ast.LimitClause limit)
+      in
+      Ast.Select
+        (attrs, FromClause tbl_list, where_clause, order_clause, limit_clause)
   | Frontend.Ast.CreateTbl (tbl_name, tbl_elt_list) ->
       Ast.CreateTbl (tbl_name, tbl_elt_list)
   | Frontend.Ast.DropTbl tbl_name_list -> Ast.DropTbl tbl_name_list

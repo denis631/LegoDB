@@ -11,6 +11,7 @@ type from_clause = FromClause of tbl_name list [@@deriving show]
 type where_clause = WhereClause of Match.Expr.boolean [@@deriving show]
 type order_expr = OrderExpr of attr_name * Order.direction [@@deriving show]
 type order_clause = OrderClause of order_expr list [@@deriving show]
+type limit_clause = LimitClause of int [@@deriving show]
 
 type tbl_elt =
   | ColDef of string * Value_type.t
@@ -23,6 +24,10 @@ type sql_expr =
   | DropTbl of tbl_name list
   (* DML *)
   | Select of
-      attr list * from_clause * where_clause option * order_clause option
+      attr list
+      * from_clause
+      * where_clause option
+      * order_clause option
+      * limit_clause option
   | Copy of tbl_name * path
 [@@deriving show]

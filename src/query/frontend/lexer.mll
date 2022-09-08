@@ -37,6 +37,7 @@ rule next_token = parse
   | "by"        { BY_SYMBOL }
   | "asc"       { ASC_SYMBOL }
   | "desc"      { DESC_SYMBOL }
+  | "limit"     { LIMIT_SYMBOL }
   | "create"    { CREATE_SYMBOL }
   | "drop"      { DROP_SYMBOL }
   | "table"     { TABLE_SYMBOL }

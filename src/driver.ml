@@ -6,7 +6,7 @@ open Storage
 module TableMeta = Table_meta
 
 let make_operator_tree catalog = function
-  | Select (attr_lst, FromClause tbl_lst, where_clause, _) ->
+  | Select (attr_lst, FromClause tbl_lst, where_clause, _, _) ->
       let find_tbl = Catalog.find_tbl catalog in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
