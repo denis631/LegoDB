@@ -74,5 +74,7 @@ let rec to_stages catalog = function
   | Planner.Operators.CreateTbl tbl_meta -> Executor.Create_tbl.make ~tbl_meta
   | Planner.Operators.DropTbl tbl_metas ->
       Executor.Drop_tbl.make ~metas:tbl_metas
+  | Planner.Operators.Limit (child_op, limit) ->
+      Executor.Limit.make ~child_op:(to_stages catalog child_op) ~limit
 
 let optimize = to_stages

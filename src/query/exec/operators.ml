@@ -3,6 +3,7 @@ let rec output_schema = function
   | Selection.Selection selection -> output_schema selection.child_op
   | Projection.Projection projection -> projection.schema
   | Hash_join.HashJoin _ -> failwith "to implement"
+  | Limit.Limit limit -> output_schema limit.child_op
   | _ -> []
 
 (* NOTE: what about this function? *)
@@ -11,6 +12,7 @@ let rec has_iu iu = function
   | Selection.Selection selection -> Selection.has_iu has_iu iu selection
   | Projection.Projection projection -> Projection.has_iu has_iu iu projection
   | Hash_join.HashJoin join -> Hash_join.has_iu has_iu iu join
+  | Limit.Limit limit -> Limit.has_iu has_iu iu limit
   | _ -> false
 
 let rec open_op ctx = function
@@ -23,6 +25,7 @@ let rec open_op ctx = function
       File_record_parser.open_op funcs ctx parser
   | Create_tbl.CreateTbl creater -> Create_tbl.open_op funcs ctx creater
   | Drop_tbl.DropTbl dropper -> Drop_tbl.open_op funcs ctx dropper
+  | Limit.Limit limit -> Limit.open_op funcs ctx limit
   | _ -> failwith "unhandled case"
 
 and close_op ctx = function
@@ -35,6 +38,7 @@ and close_op ctx = function
       File_record_parser.close_op funcs ctx parser
   | Create_tbl.CreateTbl creater -> Create_tbl.close_op funcs ctx creater
   | Drop_tbl.DropTbl dropper -> Drop_tbl.close_op funcs ctx dropper
+  | Limit.Limit limit -> Limit.close_op funcs ctx limit
   | _ -> failwith "unhandled case"
 
 and next ctx = function
@@ -47,6 +51,7 @@ and next ctx = function
       File_record_parser.next funcs ctx parser
   | Create_tbl.CreateTbl creater -> Create_tbl.next funcs ctx creater
   | Drop_tbl.DropTbl dropper -> Drop_tbl.next funcs ctx dropper
+  | Limit.Limit limit -> Limit.next funcs ctx limit
   | _ -> failwith "unhandled case"
 
 and funcs = { output_schema; open_op; close_op; next }

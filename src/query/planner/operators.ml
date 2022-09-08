@@ -15,4 +15,5 @@ type t =
   | Copy of string * string
   | CreateTbl of TableMeta.t
   | DropTbl of TableMeta.t list
+  | Limit of t * int
 [@@deriving show]

@@ -6,7 +6,7 @@ open Storage
 module TableMeta = Table_meta
 
 let make_operator_tree catalog = function
-  | Select (attr_lst, FromClause tbl_lst, where_clause, _, _) ->
+  | Select (attr_lst, FromClause tbl_lst, where_clause, _, limit_clause) -> (
       let find_tbl = Catalog.find_tbl catalog in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
@@ -34,7 +34,10 @@ let make_operator_tree catalog = function
             Planner.Operators.Selection (tbl_scan, match_expr)
         | None -> tbl_scan
       in
-      Planner.Operators.Projection (select_op, attrs)
+      let projection = Planner.Operators.Projection (select_op, attrs) in
+      match limit_clause with
+      | None -> projection
+      | Some (LimitClause limit) -> Planner.Operators.Limit (projection, limit))
   | Copy (tbl_name, path) -> Planner.Operators.Copy (tbl_name, path)
   | CreateTbl (tbl_name, tbl_elt_lst) ->
       let cols_and_indexes =
