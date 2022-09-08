@@ -1,6 +1,6 @@
 (library
  (name optimizer)
  (libraries
-   logical
-   physical
-   expr))
+   executor
+   expr
+   planner))

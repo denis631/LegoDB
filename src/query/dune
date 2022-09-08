@@ -1,10 +1,10 @@
 (library
  (name query)
  (libraries
+   executor
    expr
    frontend
-   logical
    optimizer
-   physical
+   planner
    storage
    utils))

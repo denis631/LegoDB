@@ -1,5 +1,5 @@
 (library
- (name logical)
+ (name planner)
  (libraries
    storage
    expr)

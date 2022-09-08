@@ -1,3 +1,3 @@
-val make_operator_tree : Catalog.t -> Binder.Ast.sql_expr -> Logical.Operators.t
+val make_operator_tree : Catalog.t -> Binder.Ast.sql_expr -> Planner.Operators.t
 val run : Legodb.t -> Frontend.Ast.sql_expr -> (string -> unit) -> unit
 val benchmark : (unit -> 'a) -> 'a

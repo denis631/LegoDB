@@ -2,6 +2,6 @@
  (name lego_db)
  (libraries
    frontend
-   exec
+   executor
    query
    storage))
