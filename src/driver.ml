@@ -10,14 +10,14 @@ let make_operator_tree catalog = function
       let find_tbl = Catalog.find_tbl catalog in
       let tbl_meta_seq = Sequence.of_list tbl_lst |> Sequence.map ~f:find_tbl in
       let tbl_scan =
-        let mk_tbl_scan tbl = Planner.Operators.TableScan tbl in
-        let mk_nlj lhs rhs = Planner.Operators.Join (lhs, rhs, ([], []), NLJ) in
+        let mk_tbl_scan tbl = Planner.Node.TableScan tbl in
+        let mk_nlj lhs rhs = Planner.Node.Join (lhs, rhs, ([], []), NLJ) in
         tbl_meta_seq
         |> Sequence.map ~f:mk_tbl_scan
         |> Sequence.reduce ~f:mk_nlj |> Stdlib.Option.get
       in
       let attrs =
-        if List.exists ~f:(phys_equal Star) attr_lst then Planner.Operators.All
+        if List.exists ~f:(phys_equal Star) attr_lst then Planner.Node.All
         else
           let schema =
             Sequence.of_list attr_lst
@@ -26,19 +26,19 @@ let make_operator_tree catalog = function
                  | Star -> None)
             |> Sequence.to_list
           in
-          Planner.Operators.Attributes schema
+          Planner.Node.Attributes schema
       in
       let select_op =
         match where_clause with
         | Some (WhereClause match_expr) ->
-            Planner.Operators.Selection (tbl_scan, match_expr)
+            Planner.Node.Selection (tbl_scan, match_expr)
         | None -> tbl_scan
       in
-      let projection = Planner.Operators.Projection (select_op, attrs) in
+      let projection = Planner.Node.Projection (select_op, attrs) in
       match limit_clause with
       | None -> projection
-      | Some (LimitClause limit) -> Planner.Operators.Limit (projection, limit))
-  | Copy (tbl_name, path) -> Planner.Operators.Copy (tbl_name, path)
+      | Some (LimitClause limit) -> Planner.Node.Limit (projection, limit))
+  | Copy (tbl_name, path) -> Planner.Node.Copy (tbl_name, path)
   | CreateTbl (tbl_name, tbl_elt_lst) ->
       let cols_and_indexes =
         List.fold_right
@@ -54,9 +54,9 @@ let make_operator_tree catalog = function
         TableMeta.make ~name:tbl_name ~schema:(fst cols_and_indexes)
           ~indexes:(snd cols_and_indexes) ()
       in
-      Planner.Operators.CreateTbl tbl_meta
+      Planner.Node.CreateTbl tbl_meta
   | DropTbl tbls ->
-      Planner.Operators.DropTbl (List.map ~f:(Catalog.find_tbl catalog) tbls)
+      Planner.Node.DropTbl (List.map ~f:(Catalog.find_tbl catalog) tbls)
 
 let run (legodb : Legodb.t) ast f =
   let catalog = legodb.catalog in
@@ -77,7 +77,7 @@ let run (legodb : Legodb.t) ast f =
     Sequence.unfold ~init:(init ()) ~f:next
   in
   Binder.bind catalog ast |> make_operator_tree catalog
-  |> tap (Planner.Operators.show %> print_endline)
+  |> tap (Planner.Node.show %> print_endline)
   |> Optimizer.optimize catalog |> seq_of_tree |> Sequence.iter ~f
 
 let benchmark f =
