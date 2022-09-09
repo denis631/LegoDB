@@ -25,7 +25,7 @@ let parse_and_write (ty : Value_type.t) x write =
           if is_fraction then
             failwith "invalid number format: already in fraction"
           else (digits_seen, digits_seen_fraction, true, result)
-        (* Workaround for albanian csv salary format *)
+            (* Workaround for albanian csv salary format *)
         else if Char.equal x '.' then
           (digits_seen, digits_seen_fraction, is_fraction, result)
         else
@@ -61,11 +61,12 @@ let parse_and_write (ty : Value_type.t) x write =
       assert (Int.equal k @@ String.length x);
       write (String x)
   | VarChar k ->
-      write (String x);
+      let trimmed_str = Stdlib.String.trim x in
+      write (String trimmed_str);
 
       (* append nulls if needed *)
       (* TODO: no need to write nulls? can just move the iterator forward? *)
-      let l = String.length x in
+      let l = String.length trimmed_str in
       let nulls_length = k - l in
       if Int.(nulls_length > 0) then
         let str = String.make nulls_length @@ Char.of_int_exn 0 in
